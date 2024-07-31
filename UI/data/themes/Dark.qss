@@ -1069,3 +1069,56 @@ QCalendarWidget QAbstractItemView:disabled {
 QDialogButtonBox {
     dialogbuttonbox-buttons-have-icons: 0;
 }
+
+/* Preview scrollbars and scaling controls */
+
+QScrollBar::handle:disabled {
+    background: transparent;
+    border-color: transparent;
+}
+
+#previewScalePercent,
+#previewScalingMode {
+    background: transparent;
+    font-size: 8pt;
+    height: 14px;
+    max-height: 14px;
+    padding: 0px 6px;
+    margin: 0;
+    border: none;
+    border-radius: 0;
+}
+
+#previewXContainer {
+    border: 1px solid palette(button);
+}
+
+#previewScalingMode {
+    border: 1px solid palette(button);
+}
+
+#previewScalingMode:hover,
+#previewScalingMode:focus {
+    border-color: palette(highlight);
+}
+
+#previewXScrollBar,
+#previewYScrollBar {
+    background: transparent;
+    border: 1px solid palette(button);
+    border-radius: 0;
+}
+
+#previewXScrollBar {
+    border-left: none;
+    height: 16px;
+}
+
+#previewXScrollBar::handle,
+#previewYScrollBar::handle {
+    margin: 3px;
+}
+
+#previewYScrollBar {
+    width: 16px;
+}

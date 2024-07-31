@@ -407,3 +407,14 @@ QCalendarWidget #qt_calendar_nextmonth {
 StatusBarWidget > QFrame {
     padding: 0px 12px 8px;
 }
+
+/* Preview scrollbars and scaling controls */
+
+#previewScalePercent,
+#previewScalingMode {
+    font-size: 8pt;
+}
+
+#previewScalePercent {
+    padding: 0px 6px;
+}

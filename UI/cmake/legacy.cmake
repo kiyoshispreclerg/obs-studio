@@ -189,6 +189,8 @@ target_sources(
           mute-checkbox.hpp
           plain-text-edit.cpp
           plain-text-edit.hpp
+          preview-controls.cpp
+          preview-controls.hpp
           properties-view.cpp
           properties-view.hpp
           properties-view.moc.hpp

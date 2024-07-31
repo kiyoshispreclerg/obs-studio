@@ -54,6 +54,8 @@ target_sources(
           menu-button.cpp
           menu-button.hpp
           mute-checkbox.hpp
+          preview-controls.cpp
+          preview-controls.hpp
           record-button.cpp
           record-button.hpp
           remote-text.cpp

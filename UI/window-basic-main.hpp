@@ -672,6 +672,7 @@ private:
 	std::string lastReplay;
 
 	void UpdatePreviewOverflowSettings();
+	void UpdatePreviewScrollbars();
 
 	bool restartingVCam = false;
 
@@ -802,6 +803,11 @@ private slots:
 
 	void on_actionCopyFilters_triggered();
 	void on_actionPasteFilters_triggered();
+
+	void on_previewXScrollBar_valueChanged(int value);
+	void on_previewYScrollBar_valueChanged(int value);
+
+	void PreviewScalingModeChanged(int value);
 
 	void ColorChange();
 
@@ -1244,6 +1250,14 @@ public slots:
 	void UpdateContextBar(bool force = false);
 	void UpdateContextBarDeferred(bool force = false);
 	void UpdateContextBarVisibility();
+
+signals:
+	/* Preview signals */
+	void PreviewXScrollBarMoved(int value);
+	void PreviewYScrollBarMoved(int value);
+
+	void CanvasResized(uint32_t width, uint32_t height);
+	void OutputResized(uint32_t width, uint32_t height);
 
 private:
 	std::unique_ptr<Ui::OBSBasic> ui;

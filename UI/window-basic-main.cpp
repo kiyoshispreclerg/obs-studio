@@ -381,7 +381,7 @@ OBSBasic::OBSBasic(QWidget *parent)
 			ResizePreview(ovi.base_width, ovi.base_height);
 
 		UpdateContextBarVisibility();
-		UpdatePreviewScrollbars();
+		UpdatePreviewControls();
 		dpi = devicePixelRatioF();
 	};
 	dpi = devicePixelRatioF();
@@ -412,6 +412,32 @@ OBSBasic::OBSBasic(QWidget *parent)
 		&OBSPreviewScalingComboBox::CanvasResized);
 	connect(this, &OBSBasic::OutputResized, ui->previewScalingMode,
 		&OBSPreviewScalingComboBox::OutputResized);
+
+	/* Preview Controls */
+	connect(ui->previewXScrollBar, &QScrollBar::sliderMoved, ui->preview,
+		&OBSBasicPreview::xScrollBarChanged);
+	connect(ui->previewYScrollBar, &QScrollBar::valueChanged, ui->preview,
+		&OBSBasicPreview::yScrollBarChanged);
+
+	connect(ui->previewZoomInButton, &QPushButton::clicked, ui->preview,
+		&OBSBasicPreview::increaseScalingLevel);
+	connect(ui->previewZoomOutButton, &QPushButton::clicked, ui->preview,
+		&OBSBasicPreview::decreaseScalingLevel);
+
+	/* Preview Actions */
+	connect(ui->actionScaleWindow, &QAction::triggered, this,
+		&OBSBasic::setPreviewScalingWindow);
+	connect(ui->actionScaleCanvas, &QAction::triggered, this,
+		&OBSBasic::setPreviewScalingCanvas);
+	connect(ui->actionScaleOutput, &QAction::triggered, this,
+		&OBSBasic::setPreviewScalingOutput);
+
+	connect(ui->actionPreviewZoomIn, &QAction::triggered, ui->preview,
+		&OBSBasicPreview::increaseScalingLevel);
+	connect(ui->actionPreviewZoomOut, &QAction::triggered, ui->preview,
+		&OBSBasicPreview::decreaseScalingLevel);
+	connect(ui->actionPreviewResetZoom, &QAction::triggered, ui->preview,
+		&OBSBasicPreview::resetScalingLevel);
 
 	delete shortcutFilter;
 	shortcutFilter = CreateShortcutFilter();
@@ -9698,6 +9724,7 @@ void OBSBasic::on_sideDocks_toggled(bool side)
 void OBSBasic::on_resetUI_triggered()
 {
 	on_resetDocks_triggered();
+	setPreviewScalingWindow();
 
 	ui->toggleListboxToolbars->setChecked(true);
 	ui->toggleContextBar->setChecked(true);
@@ -9788,7 +9815,7 @@ void OBSBasic::on_scalingMenu_aboutToShow()
 	UpdatePreviewScalingMenu();
 }
 
-void OBSBasic::on_actionScaleWindow_triggered()
+void OBSBasic::setPreviewScalingWindow()
 {
 	ui->preview->SetFixedScaling(false);
 	ui->preview->ResetScrollingOffset();
@@ -9796,7 +9823,7 @@ void OBSBasic::on_actionScaleWindow_triggered()
 	emit ui->preview->DisplayResized();
 }
 
-void OBSBasic::on_actionScaleCanvas_triggered()
+void OBSBasic::setPreviewScalingCanvas()
 {
 	ui->preview->SetFixedScaling(true);
 	ui->preview->SetScalingLevel(0);
@@ -9804,7 +9831,7 @@ void OBSBasic::on_actionScaleCanvas_triggered()
 	emit ui->preview->DisplayResized();
 }
 
-void OBSBasic::on_actionScaleOutput_triggered()
+void OBSBasic::setPreviewScalingOutput()
 {
 	obs_video_info ovi;
 	obs_get_video_info(&ovi);
@@ -11176,35 +11203,42 @@ void OBSBasic::ThemeChanged()
 		api->on_event(OBS_FRONTEND_EVENT_THEME_CHANGED);
 }
 
-void OBSBasic::UpdatePreviewScrollbars()
+void OBSBasic::UpdatePreviewControls()
 {
+	const int scalingLevel = ui->preview->GetScalingLevel();
+
 	if (!ui->preview->IsFixedScaling()) {
 		ui->previewXScrollBar->setRange(0, 0);
 		ui->previewYScrollBar->setRange(0, 0);
+
+		ui->actionPreviewResetZoom->setEnabled(false);
+
+		return;
 	}
-}
 
-void OBSBasic::on_previewXScrollBar_valueChanged(int value)
-{
-	emit PreviewXScrollBarMoved(value);
-}
+	const bool minZoom = scalingLevel == MAX_SCALING_LEVEL;
+	const bool maxZoom = scalingLevel == -MAX_SCALING_LEVEL;
 
-void OBSBasic::on_previewYScrollBar_valueChanged(int value)
-{
-	emit PreviewYScrollBarMoved(value);
+	ui->actionPreviewZoomIn->setEnabled(!minZoom);
+	ui->previewZoomInButton->setEnabled(!minZoom);
+
+	ui->actionPreviewZoomOut->setEnabled(!maxZoom);
+	ui->previewZoomOutButton->setEnabled(!maxZoom);
+
+	ui->actionPreviewResetZoom->setEnabled(scalingLevel != 0);
 }
 
 void OBSBasic::PreviewScalingModeChanged(int value)
 {
 	switch (value) {
 	case 0:
-		on_actionScaleWindow_triggered();
+		setPreviewScalingWindow();
 		break;
 	case 1:
-		on_actionScaleCanvas_triggered();
+		setPreviewScalingCanvas();
 		break;
 	case 2:
-		on_actionScaleOutput_triggered();
+		setPreviewScalingOutput();
 		break;
 	};
 }

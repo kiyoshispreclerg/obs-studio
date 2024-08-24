@@ -132,10 +132,6 @@ private:
 	OBSDataAutoRelease wrapper = nullptr;
 	bool changed;
 
-private slots:
-	void XScrollBarMoved(int value);
-	void YScrollBarMoved(int value);
-
 public:
 	OBSBasicPreview(QWidget *parent,
 			Qt::WindowFlags flags = Qt::WindowFlags());
@@ -176,6 +172,9 @@ public:
 	void SetScalingAmount(float newScalingAmountVal);
 	void SetScalingLevelAndAmount(int32_t newScalingLevelVal,
 				      float newScalingAmountVal);
+	void increaseScalingLevel();
+	void decreaseScalingLevel();
+	void resetScalingLevel();
 	inline int32_t GetScalingLevel() const { return scalingLevel; }
 	inline float GetScalingAmount() const { return scalingAmount; }
 
@@ -186,6 +185,9 @@ public:
 	}
 	inline float GetScrollX() const { return scrollingOffset.x; }
 	inline float GetScrollY() const { return scrollingOffset.y; }
+
+	void xScrollBarChanged(int value);
+	void yScrollBarChanged(int value);
 
 	inline void SetOverflowHidden(bool hidden) { overflowHidden = hidden; }
 	inline void SetOverflowSelectionHidden(bool hidden)

@@ -672,7 +672,7 @@ private:
 	std::string lastReplay;
 
 	void UpdatePreviewOverflowSettings();
-	void UpdatePreviewScrollbars();
+	void UpdatePreviewControls();
 
 	bool restartingVCam = false;
 
@@ -803,9 +803,6 @@ private slots:
 
 	void on_actionCopyFilters_triggered();
 	void on_actionPasteFilters_triggered();
-
-	void on_previewXScrollBar_valueChanged(int value);
-	void on_previewYScrollBar_valueChanged(int value);
 
 	void PreviewScalingModeChanged(int value);
 
@@ -1123,9 +1120,9 @@ private slots:
 	void on_actionLockPreview_triggered();
 
 	void on_scalingMenu_aboutToShow();
-	void on_actionScaleWindow_triggered();
-	void on_actionScaleCanvas_triggered();
-	void on_actionScaleOutput_triggered();
+	void setPreviewScalingWindow();
+	void setPreviewScalingCanvas();
+	void setPreviewScalingOutput();
 
 	void on_streamButton_clicked();
 	void on_recordButton_clicked();
@@ -1252,10 +1249,6 @@ public slots:
 	void UpdateContextBarVisibility();
 
 signals:
-	/* Preview signals */
-	void PreviewXScrollBarMoved(int value);
-	void PreviewYScrollBarMoved(int value);
-
 	void CanvasResized(uint32_t width, uint32_t height);
 	void OutputResized(uint32_t width, uint32_t height);
 

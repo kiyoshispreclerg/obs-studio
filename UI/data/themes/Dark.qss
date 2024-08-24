@@ -1122,3 +1122,30 @@ QScrollBar::handle:disabled {
 #previewYScrollBar {
     width: 16px;
 }
+
+#previewScalingMode:on {
+    border-color: palette(highlight);
+}
+
+#previewZoomInButton,
+#previewZoomOutButton {
+    border: none;
+    border-radius: 0px;
+    outline: none;
+    padding: 0px;
+}
+
+#previewZoomInButton:!hover,
+#previewZoomOutButton:!hover {
+    background-color: transparent;
+}
+
+#previewZoomInButton:pressed,
+#previewZoomOutButton:pressed {
+    background-color: palette(button);
+}
+
+#previewZoomInButton:focus,
+#previewZoomOutButton:focus {
+    border: 1px solid palette(highlight);
+}

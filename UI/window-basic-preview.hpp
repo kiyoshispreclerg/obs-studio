@@ -61,6 +61,8 @@ private:
 	gs_texture_t *overflow = nullptr;
 	gs_vertbuffer_t *rectFill = nullptr;
 	gs_vertbuffer_t *circleFill = nullptr;
+	gs_effect_t *solidEffect = nullptr;
+	gs_effect_t *stripedLineEffect = nullptr;
 
 	vec2 startPos;
 	vec2 mousePos;
@@ -121,6 +123,9 @@ private:
 
 	void ProcessClick(const vec2 &pos);
 
+	void DrawStripedLine(float x1, float y1, float x2, float y2,
+			     float thickness, vec2 scale);
+
 	OBSDataAutoRelease wrapper = nullptr;
 	bool changed;
 
@@ -130,6 +135,8 @@ public:
 	~OBSBasicPreview();
 
 	static OBSBasicPreview *Get();
+
+	void Init();
 
 	virtual void keyPressEvent(QKeyEvent *event) override;
 	virtual void keyReleaseEvent(QKeyEvent *event) override;

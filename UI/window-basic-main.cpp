@@ -2039,6 +2039,7 @@ void OBSBasic::OBSInit()
 
 	InitOBSCallbacks();
 	InitHotkeys();
+	ui->preview->Init();
 
 	/* hack to prevent elgato from loading its own QtNetwork that it tries
 	 * to ship with */

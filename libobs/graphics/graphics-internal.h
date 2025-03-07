@@ -23,6 +23,10 @@
 #include "matrix3.h"
 #include "matrix4.h"
 
+/* ========================================================================= *
+ * Exports                                                                   *
+ * ========================================================================= */
+
 struct gs_exports {
 	const char *(*device_get_name)(void);
 	int (*device_get_type)(void);
@@ -373,6 +377,10 @@ struct gs_exports {
 		void *pixmap);
 #endif
 };
+
+/* ========================================================================= *
+ * Graphics Subsystem Data                                                   *
+ * ========================================================================= */
 
 struct blend_state {
 	bool enabled;

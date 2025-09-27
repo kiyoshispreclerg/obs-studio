@@ -39,6 +39,7 @@
 #include <QAccessible>
 
 #include "qt-wrappers.hpp"
+#include <utility/ThumbnailManager.hpp>
 #include "obs-app.hpp"
 #include "obs-proxy-style.hpp"
 #include "log-viewer.hpp"
@@ -1750,6 +1751,8 @@ bool OBSApp::OBSInit()
 	}
 
 	setQuitOnLastWindowClosed(false);
+
+	thumbnailManager = new ThumbnailManager(this);
 
 	mainWindow = new OBSBasic();
 

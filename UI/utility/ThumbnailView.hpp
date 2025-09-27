@@ -1,5 +1,6 @@
 /******************************************************************************
-    Copyright (C) 2023 by Lain Bailey <lain@obsproject.com>
+    Copyright (C) 2025 by Taylor Giampaolo <warchamp7@obsproject.com>
+                          Lain Bailey <lain@obsproject.com>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -15,34 +16,39 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
-#include <QObject>
-#include <string>
-#include <thread>
+#pragma once
+
 #include <obs.hpp>
 
-class ScreenshotObj : public QObject {
+#include <utility/ThumbnailItem.hpp>
+
+#include <QObject>
+#include <QPixmap>
+#include <QPointer>
+
+class ThumbnailView : public QObject {
 	Q_OBJECT
 
+	QPixmap pixmap{};
+	bool enabled = true;
+
 public:
-	ScreenshotObj(obs_source_t *source);
-	~ScreenshotObj() override;
-	void Screenshot();
-	void Download();
-	void Copy();
-	void MuxAndFinish();
+	ThumbnailView(QObject *parent, const QPointer<ThumbnailItem> &item);
+	~ThumbnailView() = default;
 
-	gs_texrender_t *texrender = nullptr;
-	gs_stagesurf_t *stagesurf = nullptr;
-	OBSWeakSource weakSource;
-	std::string path;
-	QImage image;
-	std::vector<uint8_t> half_bytes;
-	uint32_t cx;
-	uint32_t cy;
-	std::thread th;
+	std::string uuid;
+	[[nodiscard]] QPixmap getPixmap() const { return pixmap; }
 
-	int stage = 0;
+	[[nodiscard]] bool isEnabled() const { return enabled; }
+	void setEnabled(bool enabled);
+
+	void requestUpdate();
+
+signals:
+	void updated(QPixmap pixmap);
+	void enabledChanged(bool enabled);
+	void updateRequested(std::string &uuid);
 
 public slots:
-	void Save();
+	void setPixmap(QPixmap pixmap);
 };

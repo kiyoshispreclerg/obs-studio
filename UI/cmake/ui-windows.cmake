@@ -31,8 +31,8 @@ target_sources(
           window-basic-settings-stream.cpp
           window-basic-settings.cpp
           window-basic-settings.hpp
-          window-basic-source-select.cpp
-          window-basic-source-select.hpp
+          dialogs/OBSBasicSourceSelect.cpp
+          dialogs/OBSBasicSourceSelect.hpp
           window-basic-stats.cpp
           window-basic-stats.hpp
           window-basic-status-bar.cpp

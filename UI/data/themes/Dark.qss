@@ -1149,3 +1149,63 @@ QScrollBar::handle:disabled {
 #previewZoomOutButton:focus {
     border: 1px solid palette(highlight);
 }
+
+/* Add Source Dialog */
+
+[class~="text-title"] {
+    font-size: 14pt;
+    font-weight: bold;
+}
+
+[class~="text-muted"] {
+    color: palette(mid);
+}
+
+[class~="btn-create-new"] {
+    background: transparent;
+    padding: 8px 8px;
+    border-radius: 4px;
+    border: 2px dashed palette(button);
+    outline: none;
+    qproperty-icon: url(:/res/images/plus.svg);
+    margin-bottom: 8px;
+}
+
+[class~="btn-create-new"]:hover {
+    border-color: palette(highlight);
+}
+
+SourceSelectButton {
+    background: palette(base);
+    padding: 2px 4px;
+    margin: 4px;
+    border-radius: 4px;
+    border: 1px solid palette(button);
+    outline: none;
+}
+
+SourceSelectButton QLabel {
+    padding: 4px 0;
+    text-align: center;
+}
+
+SourceSelectButton #thumbnail {
+    background: palette(window);
+    border-radius: 4px;
+    padding: 0;
+    margin-top: 4px;
+}
+
+SourceSelectButton:hover {
+    background-color: palette(button);
+}
+
+SourceSelectButton:checked {
+    background-color: palette(highlight);
+    border-color: palette(highlight);
+}
+
+SourceSelectButton:focus,
+SourceSelectButton:checked:focus {
+    border-color: palette(text);
+}

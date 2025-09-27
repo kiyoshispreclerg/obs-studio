@@ -200,7 +200,21 @@ target_sources(
           remote-text.hpp
           scene-tree.cpp
           scene-tree.hpp
-          screenshot-obj.hpp
+          components/FlowFrame.cpp
+          components/FlowFrame.hpp
+          components/FlowLayout.cpp
+          components/FlowLayout.hpp
+          components/SourceSelectButton.cpp
+          components/SourceSelectButton.hpp
+          utility/ResizeSignaler.hpp
+          utility/ScreenshotObj.cpp
+          utility/ScreenshotObj.hpp
+          utility/ThumbnailItem.cpp
+          utility/ThumbnailItem.hpp
+          utility/ThumbnailManager.cpp
+          utility/ThumbnailManager.hpp
+          utility/ThumbnailView.cpp
+          utility/ThumbnailView.hpp
           slider-absoluteset-style.cpp
           slider-absoluteset-style.hpp
           slider-ignorewheel.cpp
@@ -253,8 +267,8 @@ target_sources(
           window-basic-settings.hpp
           window-basic-settings-a11y.cpp
           window-basic-settings-stream.cpp
-          window-basic-source-select.cpp
-          window-basic-source-select.hpp
+          dialogs/OBSBasicSourceSelect.cpp
+          dialogs/OBSBasicSourceSelect.hpp
           window-basic-stats.cpp
           window-basic-stats.hpp
           window-basic-status-bar.cpp

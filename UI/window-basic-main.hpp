@@ -54,6 +54,7 @@
 class QMessageBox;
 class QListWidgetItem;
 class VolControl;
+class OBSBasicSourceSelect;
 class OBSBasicStats;
 class OBSBasicVCamConfig;
 
@@ -271,6 +272,7 @@ private:
 	uint64_t lastYouTubeAppDockCreationTime = 0;
 #endif
 	QPointer<OBSAbout> about;
+	QPointer<OBSBasicSourceSelect> addWindow;
 	QPointer<OBSMissingFiles> missDialog;
 	QPointer<OBSLogViewer> logView;
 
@@ -872,9 +874,6 @@ private:
 
 	void ResizePreview(uint32_t cx, uint32_t cy);
 
-	void AddSource(const char *id);
-	QMenu *CreateAddSourcePopupMenu();
-	void AddSourcePopupMenu(const QPoint &pos);
 	void copyActionsDynamicProperties();
 
 	static void HotkeyTriggered(void *data, obs_hotkey_id id, bool pressed);
@@ -1105,6 +1104,7 @@ private slots:
 	void on_actionSceneDown_triggered();
 	void on_sources_customContextMenuRequested(const QPoint &pos);
 	void on_scenes_itemDoubleClicked(QListWidgetItem *item);
+	void AddSourceDialog();
 	void on_actionAddSource_triggered();
 	void on_actionRemoveSource_triggered();
 	void on_actionInteract_triggered();
@@ -1249,6 +1249,8 @@ public slots:
 	void UpdateContextBarVisibility();
 
 signals:
+	void sourceUuidDropped(QString uuid);
+
 	void CanvasResized(uint32_t width, uint32_t height);
 	void OutputResized(uint32_t width, uint32_t height);
 

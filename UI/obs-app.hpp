@@ -88,6 +88,8 @@ struct UpdateBranch {
 	bool is_visible;
 };
 
+class ThumbnailManager;
+
 class OBSApp : public QApplication {
 	Q_OBJECT
 
@@ -112,6 +114,8 @@ private:
 	bool enableHotkeysOutOfFocus = true;
 
 	std::deque<obs_frontend_translate_ui_cb> translatorHooks;
+
+	ThumbnailManager *thumbnailManager = nullptr;
 
 	bool UpdatePre22MultiviewLayout(const char *layout);
 
@@ -147,6 +151,8 @@ public:
 	bool OBSInit();
 
 	void UpdateHotkeyFocusSetting(bool reset = true);
+
+	ThumbnailManager *thumbnails() const { return thumbnailManager; }
 	void DisableHotkeys();
 
 	inline bool HotkeysEnabledInFocus() const

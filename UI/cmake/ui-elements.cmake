@@ -62,7 +62,21 @@ target_sources(
           remote-text.hpp
           scene-tree.cpp
           scene-tree.hpp
-          screenshot-obj.hpp
+          components/FlowFrame.cpp
+          components/FlowFrame.hpp
+          components/FlowLayout.cpp
+          components/FlowLayout.hpp
+          components/SourceSelectButton.cpp
+          components/SourceSelectButton.hpp
+          utility/ResizeSignaler.hpp
+          utility/ScreenshotObj.cpp
+          utility/ScreenshotObj.hpp
+          utility/ThumbnailItem.cpp
+          utility/ThumbnailItem.hpp
+          utility/ThumbnailManager.cpp
+          utility/ThumbnailManager.hpp
+          utility/ThumbnailView.cpp
+          utility/ThumbnailView.hpp
           slider-absoluteset-style.cpp
           slider-absoluteset-style.hpp
           source-label.cpp

@@ -29,6 +29,9 @@ struct ts_info {
 
 static void push_audio_tree(obs_source_t *parent, obs_source_t *source, void *p)
 {
+	if (obs_source_removed(source))
+		return;
+
 	struct obs_core_audio *audio = p;
 
 	if (da_find(audio->render_order, &source, 0) == DARRAY_INVALID) {
@@ -559,6 +562,8 @@ bool audio_callback(void *param, uint64_t start_ts_in, uint64_t end_ts_in,
 				continue;
 			if (!obs_source_active(source))
 				continue;
+			if (obs_source_removed(source))
+				continue;
 
 			obs_source_enum_active_tree(source, push_audio_tree,
 						    audio);
@@ -575,7 +580,8 @@ bool audio_callback(void *param, uint64_t start_ts_in, uint64_t end_ts_in,
 
 	source = data->first_audio_source;
 	while (source) {
-		push_audio_tree(NULL, source, audio);
+		if (!obs_source_removed(source))
+			push_audio_tree(NULL, source, audio);
 		source = (struct obs_source *)source->next_audio_source;
 	}
 

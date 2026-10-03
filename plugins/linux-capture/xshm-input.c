@@ -25,6 +25,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include <obs-module.h>
 #include <util/dstr.h>
+#include <util/platform.h>
 #include "xcursor-xcb.h"
 #include "xhelpers.h"
 
@@ -483,6 +484,31 @@ static void *xshm_create(obs_data_t *settings, obs_source_t *source)
 /**
  * Prepare the capture data
  */
+/* Optional timing breakdown of the tick (OBS_XSHM_PROFILE=1), logged every
+ * 5 seconds. Only touched from the graphics thread. */
+static struct {
+	uint64_t send_ns, wait_ns, upload_ns, cursor_ns, max_wait_ns;
+	uint64_t frames, last_log_ns;
+	int enabled;
+} xshm_prof = {.enabled = -1};
+
+static void xshm_prof_log(uint64_t now)
+{
+	double n = (double)xshm_prof.frames;
+
+	blog(LOG_INFO,
+	     "[xshm-profile] %.0f frames: request %.3f ms, wait for X %.3f ms "
+	     "(max %.2f), upload to GPU %.3f ms, cursor %.3f ms (per frame)",
+	     n, xshm_prof.send_ns / 1e6 / n, xshm_prof.wait_ns / 1e6 / n,
+	     xshm_prof.max_wait_ns / 1e6, xshm_prof.upload_ns / 1e6 / n,
+	     xshm_prof.cursor_ns / 1e6 / n);
+
+	xshm_prof.send_ns = xshm_prof.wait_ns = xshm_prof.upload_ns = 0;
+	xshm_prof.cursor_ns = xshm_prof.max_wait_ns = 0;
+	xshm_prof.frames = 0;
+	xshm_prof.last_log_ns = now;
+}
+
 static void xshm_video_tick(void *vptr, float seconds)
 {
 	UNUSED_PARAMETER(seconds);
@@ -493,8 +519,18 @@ static void xshm_video_tick(void *vptr, float seconds)
 	if (!obs_source_showing(data->source))
 		return;
 
+	if (xshm_prof.enabled < 0) {
+		const char *env = getenv("OBS_XSHM_PROFILE");
+		xshm_prof.enabled = env && *env && strcmp(env, "0") != 0;
+	}
+	const bool prof = xshm_prof.enabled > 0;
+	uint64_t t0 = 0, t1 = 0, t2 = 0, t3 = 0, t4 = 0;
+
 	xcb_shm_get_image_cookie_t img_c;
 	xcb_shm_get_image_reply_t *img_r;
+
+	if (prof)
+		t0 = os_gettime_ns();
 
 	img_c = xcb_shm_get_image_unchecked(data->xcb, data->xcb_screen->root,
 					    data->adj_x_org, data->adj_y_org,
@@ -502,7 +538,13 @@ static void xshm_video_tick(void *vptr, float seconds)
 					    ~0, XCB_IMAGE_FORMAT_Z_PIXMAP,
 					    data->xshm->seg, 0);
 
+	if (prof)
+		t1 = os_gettime_ns();
+
 	img_r = xcb_shm_get_image_reply(data->xcb, img_c, NULL);
+
+	if (prof)
+		t2 = os_gettime_ns();
 
 	if (!img_r)
 		goto exit;
@@ -511,9 +553,28 @@ static void xshm_video_tick(void *vptr, float seconds)
 
 	gs_texture_set_image(data->texture, (void *)data->xshm->data,
 			     data->adj_width * 4, false);
+
+	if (prof)
+		t3 = os_gettime_ns();
+
 	xcb_xcursor_update(data->xcb, data->cursor);
 
 	obs_leave_graphics();
+
+	if (prof) {
+		t4 = os_gettime_ns();
+		xshm_prof.send_ns += t1 - t0;
+		xshm_prof.wait_ns += t2 - t1;
+		if (t2 - t1 > xshm_prof.max_wait_ns)
+			xshm_prof.max_wait_ns = t2 - t1;
+		xshm_prof.upload_ns += t3 - t2;
+		xshm_prof.cursor_ns += t4 - t3;
+		xshm_prof.frames++;
+		if (!xshm_prof.last_log_ns)
+			xshm_prof.last_log_ns = t4;
+		else if (t4 - xshm_prof.last_log_ns > 5000000000ULL)
+			xshm_prof_log(t4);
+	}
 
 exit:
 	free(img_r);

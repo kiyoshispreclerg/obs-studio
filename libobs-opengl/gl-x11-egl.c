@@ -73,6 +73,7 @@ struct gl_windowinfo {
 	 * compatible with Xlib as well.
 	 */
 	xcb_window_t window;
+	xcb_colormap_t colormap;
 	EGLSurface surface;
 };
 
@@ -263,7 +264,8 @@ static struct gl_windowinfo *
 gl_x11_egl_windowinfo_create(const struct gs_init_data *info)
 {
 	UNUSED_PARAMETER(info);
-	return bmalloc(sizeof(struct gl_windowinfo));
+	/* Zeroed so cleanup can tell which resources were actually created */
+	return bzalloc(sizeof(struct gl_windowinfo));
 }
 
 static void gl_x11_egl_windowinfo_destroy(struct gl_windowinfo *info)
@@ -424,6 +426,7 @@ static bool gl_x11_egl_platform_init_swapchain(struct gs_swap_chain *swap)
 
 	xcb_create_colormap(xcb_conn, XCB_COLORMAP_ALLOC_NONE, colormap, parent,
 			    visual);
+	swap->wi->colormap = colormap;
 
 	xcb_void_cookie_t window_cookie = xcb_create_window_checked(
 		xcb_conn, 24 /* Hardcoded? */, wid, parent, 0, 0,
@@ -437,8 +440,10 @@ static bool gl_x11_egl_platform_init_swapchain(struct gs_swap_chain *swap)
 		     "Swapchain window creation failed: %s"
 		     ", Major opcode: %d, Minor opcode: %d",
 		     text, err->major_code, err->minor_code);
+		free(err);
 		goto fail_window_surface;
 	}
+	swap->wi->window = wid;
 
 	const EGLSurface surface =
 		eglCreateWindowSurface(plat->edisplay, plat->config, wid, 0);
@@ -448,7 +453,6 @@ static bool gl_x11_egl_platform_init_swapchain(struct gs_swap_chain *swap)
 		goto fail_window_surface;
 	}
 
-	swap->wi->window = wid;
 	swap->wi->surface = surface;
 
 	xcb_map_window(xcb_conn, wid);
@@ -466,8 +470,32 @@ success:
 
 static void gl_x11_egl_platform_cleanup_swapchain(struct gs_swap_chain *swap)
 {
-	UNUSED_PARAMETER(swap);
-	/* Really nothing to clean up? */
+	const struct gl_platform *plat = swap->device->plat;
+	struct gl_windowinfo *wi = swap->wi;
+
+	if (!wi)
+		return;
+
+	/* Partially initialized swapchains (init failure) are cleaned up here
+	 * too, so only release what was actually created. */
+	if (wi->surface != EGL_NO_SURFACE) {
+		eglDestroySurface(plat->edisplay, wi->surface);
+		wi->surface = EGL_NO_SURFACE;
+	}
+
+	xcb_connection_t *xcb_conn = XGetXCBConnection(plat->xdisplay);
+
+	if (wi->window) {
+		xcb_destroy_window(xcb_conn, wi->window);
+		wi->window = 0;
+	}
+
+	if (wi->colormap) {
+		xcb_free_colormap(xcb_conn, wi->colormap);
+		wi->colormap = 0;
+	}
+
+	xcb_flush(xcb_conn);
 }
 
 static void gl_x11_egl_device_enter_context(gs_device_t *device)

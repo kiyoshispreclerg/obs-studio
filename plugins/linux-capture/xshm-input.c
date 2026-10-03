@@ -24,6 +24,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <xcb/xinerama.h>
 
 #include <obs-module.h>
+#include <glad/glad.h>
 #include <util/dstr.h>
 #include <util/platform.h>
 #include "xcursor-xcb.h"
@@ -59,6 +60,14 @@ struct xshm_data {
 	int_fast32_t adj_y_org;
 	int_fast32_t adj_width;
 	int_fast32_t adj_height;
+
+	/* GPU copy mode: the server copies the screen into a pixmap that is
+	 * imported once as a texture, so no readback to system memory and no
+	 * upload are needed every frame */
+	bool gpu_copy_enabled;
+	bool gpu_copy;
+	xcb_pixmap_t pixmap;
+	xcb_gcontext_t gc;
 
 	bool show_cursor;
 	bool use_xinerama;
@@ -202,6 +211,16 @@ static void xshm_capture_stop(struct xshm_data *data)
 
 	obs_leave_graphics();
 
+	if (data->xcb) {
+		if (data->gc)
+			xcb_free_gc(data->xcb, data->gc);
+		if (data->pixmap)
+			xcb_free_pixmap(data->xcb, data->pixmap);
+	}
+	data->gc = 0;
+	data->pixmap = 0;
+	data->gpu_copy = false;
+
 	if (data->xshm) {
 		xshm_xcb_detach(data->xshm);
 		data->xshm = NULL;
@@ -216,6 +235,58 @@ static void xshm_capture_stop(struct xshm_data *data)
 		bfree(data->server);
 		data->server = NULL;
 	}
+}
+
+/**
+ * Set up GPU copy mode
+ *
+ * @return true on success, false to fall back to SHM readback
+ */
+static bool xshm_gpu_copy_init(struct xshm_data *data)
+{
+	xcb_screen_t *screen = data->xcb_screen;
+	xcb_void_cookie_t cookie;
+	xcb_generic_error_t *err;
+
+	if (!screen)
+		return false;
+
+	data->pixmap = xcb_generate_id(data->xcb);
+	cookie = xcb_create_pixmap_checked(data->xcb, screen->root_depth,
+					   data->pixmap, screen->root,
+					   data->adj_width, data->adj_height);
+	if ((err = xcb_request_check(data->xcb, cookie))) {
+		free(err);
+		data->pixmap = 0;
+		return false;
+	}
+
+	/* without IncludeInferiors the copy would skip every top level window;
+	 * without disabling graphics exposures every copy would queue a
+	 * NoExpose event that nobody reads */
+	uint32_t gc_values[] = {XCB_SUBWINDOW_MODE_INCLUDE_INFERIORS, 0};
+	data->gc = xcb_generate_id(data->xcb);
+	cookie = xcb_create_gc_checked(data->xcb, data->gc, data->pixmap,
+				       XCB_GC_SUBWINDOW_MODE |
+					       XCB_GC_GRAPHICS_EXPOSURES,
+				       gc_values);
+	if ((err = xcb_request_check(data->xcb, cookie))) {
+		free(err);
+		data->gc = 0;
+		return false;
+	}
+
+	obs_enter_graphics();
+	data->texture = gs_texture_create_from_pixmap(
+		data->adj_width, data->adj_height, GS_BGRA_UNORM,
+		GL_TEXTURE_2D, (void *)(uintptr_t)data->pixmap);
+	obs_leave_graphics();
+
+	if (!data->texture)
+		return false;
+
+	data->gpu_copy = true;
+	return true;
 }
 
 /**
@@ -243,15 +314,31 @@ static void xshm_capture_start(struct xshm_data *data)
 		goto fail;
 	}
 
+	data->cursor = xcb_xcursor_init(data->xcb);
+	xcb_xcursor_offset(data->cursor, data->adj_x_org, data->adj_y_org);
+
+	if (data->gpu_copy_enabled) {
+		if (xshm_gpu_copy_init(data)) {
+			blog(LOG_INFO, "Using GPU copy (no readback)");
+			return;
+		}
+
+		blog(LOG_WARNING,
+		     "GPU copy unavailable, falling back to SHM readback");
+		if (data->gc)
+			xcb_free_gc(data->xcb, data->gc);
+		if (data->pixmap)
+			xcb_free_pixmap(data->xcb, data->pixmap);
+		data->gc = 0;
+		data->pixmap = 0;
+	}
+
 	data->xshm =
 		xshm_xcb_attach(data->xcb, data->adj_width, data->adj_height);
 	if (!data->xshm) {
 		blog(LOG_ERROR, "failed to attach shm !");
 		goto fail;
 	}
-
-	data->cursor = xcb_xcursor_init(data->xcb);
-	xcb_xcursor_offset(data->cursor, data->adj_x_org, data->adj_y_org);
 
 	obs_enter_graphics();
 
@@ -275,6 +362,12 @@ static void xshm_update(void *vptr, obs_data_t *settings)
 
 	data->screen_id = obs_data_get_int(settings, "screen");
 	data->show_cursor = obs_data_get_bool(settings, "show_cursor");
+	data->gpu_copy_enabled = obs_data_get_bool(settings, "gpu_copy");
+
+	/* testing override: OBS_XSHM_GPU_COPY=1 forces GPU copy, =0 forces SHM */
+	const char *force_gpu_copy = getenv("OBS_XSHM_GPU_COPY");
+	if (force_gpu_copy && *force_gpu_copy)
+		data->gpu_copy_enabled = strcmp(force_gpu_copy, "0") != 0;
 	data->advanced = obs_data_get_bool(settings, "advanced");
 	data->server = bstrdup(obs_data_get_string(settings, "server"));
 
@@ -293,6 +386,7 @@ static void xshm_defaults(obs_data_t *defaults)
 {
 	obs_data_set_default_int(defaults, "screen", 0);
 	obs_data_set_default_bool(defaults, "show_cursor", true);
+	obs_data_set_default_bool(defaults, "gpu_copy", false);
 	obs_data_set_default_bool(defaults, "advanced", false);
 	obs_data_set_default_int(defaults, "cut_top", 0);
 	obs_data_set_default_int(defaults, "cut_left", 0);
@@ -420,6 +514,10 @@ static obs_properties_t *xshm_properties(void *vptr)
 				OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_INT);
 	obs_properties_add_bool(props, "show_cursor",
 				obs_module_text("CaptureCursor"));
+	obs_property_t *gpu_copy = obs_properties_add_bool(
+		props, "gpu_copy", obs_module_text("XSHM.GpuCopy"));
+	obs_property_set_long_description(
+		gpu_copy, obs_module_text("XSHM.GpuCopy.Description"));
 	obs_property_t *advanced = obs_properties_add_bool(
 		props, "advanced", obs_module_text("AdvancedSettings"));
 
@@ -509,6 +607,46 @@ static void xshm_prof_log(uint64_t now)
 	xshm_prof.last_log_ns = now;
 }
 
+/* t0..t4: before request, after request, after reply, after upload, end */
+static void xshm_prof_record(uint64_t t0, uint64_t t1, uint64_t t2,
+			     uint64_t t3, uint64_t t4)
+{
+	xshm_prof.send_ns += t1 - t0;
+	xshm_prof.wait_ns += t2 - t1;
+	if (t2 - t1 > xshm_prof.max_wait_ns)
+		xshm_prof.max_wait_ns = t2 - t1;
+	xshm_prof.upload_ns += t3 - t2;
+	xshm_prof.cursor_ns += t4 - t3;
+	xshm_prof.frames++;
+
+	if (!xshm_prof.last_log_ns)
+		xshm_prof.last_log_ns = t4;
+	else if (t4 - xshm_prof.last_log_ns > 5000000000ULL)
+		xshm_prof_log(t4);
+}
+
+/* GPU copy mode: ask the server to blit the screen into our pixmap.
+ * Asynchronous, there is no reply to wait for. The texture shares the
+ * pixmap's buffer and implicit sync orders the blit against our reads. */
+static void xshm_tick_gpu_copy(struct xshm_data *data, bool prof)
+{
+	uint64_t t0 = prof ? os_gettime_ns() : 0;
+
+	xcb_copy_area(data->xcb, data->xcb_screen->root, data->pixmap,
+		      data->gc, data->adj_x_org, data->adj_y_org, 0, 0,
+		      data->adj_width, data->adj_height);
+	xcb_flush(data->xcb);
+
+	uint64_t t1 = prof ? os_gettime_ns() : 0;
+
+	obs_enter_graphics();
+	xcb_xcursor_update(data->xcb, data->cursor);
+	obs_leave_graphics();
+
+	if (prof)
+		xshm_prof_record(t0, t1, t1, t1, os_gettime_ns());
+}
+
 static void xshm_video_tick(void *vptr, float seconds)
 {
 	UNUSED_PARAMETER(seconds);
@@ -524,8 +662,13 @@ static void xshm_video_tick(void *vptr, float seconds)
 		xshm_prof.enabled = env && *env && strcmp(env, "0") != 0;
 	}
 	const bool prof = xshm_prof.enabled > 0;
-	uint64_t t0 = 0, t1 = 0, t2 = 0, t3 = 0, t4 = 0;
 
+	if (data->gpu_copy) {
+		xshm_tick_gpu_copy(data, prof);
+		return;
+	}
+
+	uint64_t t0 = 0, t1 = 0, t2 = 0, t3 = 0;
 	xcb_shm_get_image_cookie_t img_c;
 	xcb_shm_get_image_reply_t *img_r;
 
@@ -561,20 +704,8 @@ static void xshm_video_tick(void *vptr, float seconds)
 
 	obs_leave_graphics();
 
-	if (prof) {
-		t4 = os_gettime_ns();
-		xshm_prof.send_ns += t1 - t0;
-		xshm_prof.wait_ns += t2 - t1;
-		if (t2 - t1 > xshm_prof.max_wait_ns)
-			xshm_prof.max_wait_ns = t2 - t1;
-		xshm_prof.upload_ns += t3 - t2;
-		xshm_prof.cursor_ns += t4 - t3;
-		xshm_prof.frames++;
-		if (!xshm_prof.last_log_ns)
-			xshm_prof.last_log_ns = t4;
-		else if (t4 - xshm_prof.last_log_ns > 5000000000ULL)
-			xshm_prof_log(t4);
-	}
+	if (prof)
+		xshm_prof_record(t0, t1, t2, t3, os_gettime_ns());
 
 exit:
 	free(img_r);

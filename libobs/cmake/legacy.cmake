@@ -66,6 +66,8 @@ target_sources(
           obs-scene.h
           obs-source.c
           obs-source.h
+          obs-source-profiler.c
+          obs-source-profiler.h
           obs-source-deinterlace.c
           obs-source-transition.c
           obs-video.c

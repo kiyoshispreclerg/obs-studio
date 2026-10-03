@@ -22,6 +22,7 @@
 
 #include "obs.h"
 #include "obs-internal.h"
+#include "obs-source-profiler.h"
 
 struct obs_core *obs = NULL;
 
@@ -1249,6 +1250,7 @@ static bool obs_init(const char *locale, const char *module_config_path,
 
 	if (!obs_init_data())
 		return false;
+	source_profiler_init();
 	if (!obs_init_handlers())
 		return false;
 	if (!obs_init_hotkeys())
@@ -1417,6 +1419,7 @@ void obs_shutdown(void)
 	da_free(obs->transition_types);
 
 	stop_video();
+	source_profiler_dump_total();
 	stop_audio();
 	stop_hotkeys();
 
@@ -1429,6 +1432,7 @@ void obs_shutdown(void)
 	obs->first_module = NULL;
 
 	obs_free_data();
+	source_profiler_free();
 	obs_free_audio();
 	obs_free_video();
 	os_task_queue_destroy(obs->destruction_task_thread);

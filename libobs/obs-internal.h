@@ -706,6 +706,8 @@ struct media_action {
 	};
 };
 
+struct source_prof_entry;
+
 struct obs_source {
 	struct obs_context_data context;
 	struct obs_source_info info;
@@ -844,6 +846,9 @@ struct obs_source {
 	enum obs_allow_direct_render allow_direct;
 	bool rendering_filter;
 	bool filter_bypass_active;
+
+	/* per-source profiler entry (see obs-source-profiler.c) */
+	struct source_prof_entry *prof;
 
 	/* sources specific hotkeys */
 	obs_hotkey_pair_id mute_unmute_key;

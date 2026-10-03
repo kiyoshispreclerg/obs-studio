@@ -30,6 +30,7 @@
 
 #include "obs.h"
 #include "obs-internal.h"
+#include "obs-source-profiler.h"
 
 #define get_weak(source) ((obs_weak_source_t *)source->context.control)
 
@@ -2988,7 +2989,7 @@ static const char *get_type_format(enum obs_source_type type)
 }
 #endif
 
-static inline void render_video(obs_source_t *source)
+static inline void render_video_impl(obs_source_t *source)
 {
 	if (source->info.type != OBS_SOURCE_TYPE_FILTER &&
 	    (source->info.output_flags & OBS_SOURCE_VIDEO) == 0) {
@@ -3031,6 +3032,20 @@ static inline void render_video(obs_source_t *source)
 		obs_source_render_async_video(source);
 
 	GS_DEBUG_MARKER_END();
+}
+
+static inline void render_video(obs_source_t *source)
+{
+	if (!obs_source_profiler_enabled) {
+		render_video_impl(source);
+		return;
+	}
+
+	struct source_prof_frame frame;
+
+	source_profiler_render_begin(&frame);
+	render_video_impl(source);
+	source_profiler_render_end(source, &frame);
 }
 
 void obs_source_video_render(obs_source_t *source)

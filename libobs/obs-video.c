@@ -20,6 +20,7 @@
 
 #include "obs.h"
 #include "obs-internal.h"
+#include "obs-source-profiler.h"
 #include "graphics/vec4.h"
 #include "media-io/format-conversion.h"
 #include "media-io/video-frame.h"
@@ -74,6 +75,18 @@ static uint64_t tick_sources(uint64_t cur_time, uint64_t last_time)
 
 	/* ------------------------------------- */
 	/* call the tick function of each source */
+
+	if (obs_source_profiler_enabled) {
+		for (size_t i = 0; i < data->sources_to_tick.num; i++) {
+			obs_source_t *s = data->sources_to_tick.array[i];
+			uint64_t start = os_gettime_ns();
+			obs_source_video_tick(s, seconds);
+			source_profiler_tick(s, os_gettime_ns() - start);
+			obs_source_release(s);
+		}
+		source_profiler_frame(cur_time);
+		return cur_time;
+	}
 
 	for (size_t i = 0; i < data->sources_to_tick.num; i++) {
 		obs_source_t *s = data->sources_to_tick.array[i];

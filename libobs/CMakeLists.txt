@@ -84,6 +84,8 @@ target_sources(
           obs-source-transition.c
           obs-source.c
           obs-source.h
+          obs-source-profiler.c
+          obs-source-profiler.h
           obs-video-gpu-encode.c
           obs-video.c
           obs-view.c

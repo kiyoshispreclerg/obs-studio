@@ -18,7 +18,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <stdio.h>
 #include <stdlib.h>
 #include <inttypes.h>
+#include <sys/uio.h>
 #include <xcb/randr.h>
+#include <xcb/xcbext.h>
 #include <xcb/shm.h>
 #include <xcb/xfixes.h>
 #include <xcb/xinerama.h>
@@ -64,7 +66,7 @@ struct xshm_data {
 	/* GPU copy mode: the server copies the screen into a pixmap that is
 	 * imported once as a texture, so no readback to system memory and no
 	 * upload are needed every frame */
-	bool gpu_copy_enabled;
+	int copy_mode;
 	bool gpu_copy;
 	xcb_pixmap_t pixmap;
 	xcb_gcontext_t gc;
@@ -237,6 +239,138 @@ static void xshm_capture_stop(struct xshm_data *data)
 	}
 }
 
+/* How the screen is copied: let the server tell us, or force a method */
+enum xshm_copy_mode {
+	XSHM_COPY_AUTO = 0,
+	XSHM_COPY_GPU = 1,
+	XSHM_COPY_SHM = 2,
+};
+
+/* Present extension: wire format of QueryCapabilities, sent by hand so the
+ * plugin does not need to link against xcb-present */
+#define PRESENT_QUERY_CAPABILITIES 4
+
+/* XiS servers set this bit in the QueryCapabilities reply when a CopyArea from
+ * the root window (IncludeInferiors) shows what is actually displayed,
+ * including content page-flipped per CRTC. Without it the screen pixmap can be
+ * stale and a CopyArea based capture freezes. */
+#define PRESENT_CAP_XIS_ROOT_COPY 0x80000000u
+
+static xcb_extension_t xshm_present_id = {"Present", 0};
+
+struct present_caps_request {
+	uint8_t major_opcode;
+	uint8_t minor_opcode;
+	uint16_t length;
+	uint32_t target;
+};
+
+struct present_caps_reply {
+	uint8_t response_type;
+	uint8_t pad0;
+	uint16_t sequence;
+	uint32_t length;
+	uint32_t capabilities;
+	uint8_t pad1[20];
+};
+
+static inline int64_t i64_min(int64_t a, int64_t b)
+{
+	return a < b ? a : b;
+}
+
+static inline int64_t i64_max(int64_t a, int64_t b)
+{
+	return a > b ? a : b;
+}
+
+/* Pick the RandR CRTC the capture area overlaps most, or any active one */
+static xcb_randr_crtc_t xshm_pick_crtc(struct xshm_data *data)
+{
+	xcb_randr_crtc_t best = XCB_NONE;
+	int64_t best_overlap = -1;
+
+	xcb_randr_get_screen_resources_current_reply_t *res =
+		xcb_randr_get_screen_resources_current_reply(
+			data->xcb,
+			xcb_randr_get_screen_resources_current(
+				data->xcb, data->xcb_screen->root),
+			NULL);
+	if (!res)
+		return XCB_NONE;
+
+	xcb_randr_crtc_t *crtcs = xcb_randr_get_screen_resources_current_crtcs(res);
+	int n = xcb_randr_get_screen_resources_current_crtcs_length(res);
+
+	for (int i = 0; i < n; i++) {
+		xcb_randr_get_crtc_info_reply_t *info =
+			xcb_randr_get_crtc_info_reply(
+				data->xcb,
+				xcb_randr_get_crtc_info(data->xcb, crtcs[i],
+							res->config_timestamp),
+				NULL);
+		if (!info)
+			continue;
+
+		if (info->width && info->height) {
+			int64_t ox = i64_min((int64_t)info->x + info->width,
+					 (int64_t)data->adj_x_org + data->adj_width) -
+				     i64_max((int64_t)info->x, (int64_t)data->adj_x_org);
+			int64_t oy = i64_min((int64_t)info->y + info->height,
+					 (int64_t)data->adj_y_org + data->adj_height) -
+				     i64_max((int64_t)info->y, (int64_t)data->adj_y_org);
+			int64_t overlap = (ox > 0 && oy > 0) ? ox * oy : 0;
+
+			if (overlap > best_overlap) {
+				best_overlap = overlap;
+				best = crtcs[i];
+			}
+		}
+		free(info);
+	}
+
+	free(res);
+	return best;
+}
+
+/**
+ * Does the server guarantee that a root CopyArea shows the displayed content?
+ */
+static bool xshm_server_has_root_copy(struct xshm_data *data)
+{
+	if (!data->xcb_screen ||
+	    !xcb_get_extension_data(data->xcb, &xshm_present_id)->present)
+		return false;
+
+	xcb_randr_crtc_t crtc = xshm_pick_crtc(data);
+	if (crtc == XCB_NONE)
+		return false;
+
+	struct present_caps_request req = {0};
+	req.target = crtc;
+
+	struct iovec parts[4];
+	parts[2].iov_base = (char *)&req;
+	parts[2].iov_len = sizeof(req);
+	parts[3].iov_base = NULL;
+	parts[3].iov_len = -parts[2].iov_len & 3;
+
+	xcb_protocol_request_t proto = {2, &xshm_present_id,
+					PRESENT_QUERY_CAPABILITIES, 1};
+	xcb_generic_error_t *err = NULL;
+	unsigned int seq = xcb_send_request(data->xcb, 0, parts + 2, &proto);
+	struct present_caps_reply *reply =
+		xcb_wait_for_reply(data->xcb, seq, &err);
+
+	free(err);
+	if (!reply)
+		return false;
+
+	bool supported = (reply->capabilities & PRESENT_CAP_XIS_ROOT_COPY) != 0;
+	free(reply);
+	return supported;
+}
+
 /**
  * Set up GPU copy mode
  *
@@ -317,7 +451,15 @@ static void xshm_capture_start(struct xshm_data *data)
 	data->cursor = xcb_xcursor_init(data->xcb);
 	xcb_xcursor_offset(data->cursor, data->adj_x_org, data->adj_y_org);
 
-	if (data->gpu_copy_enabled) {
+	bool want_gpu_copy = data->copy_mode == XSHM_COPY_GPU;
+	if (data->copy_mode == XSHM_COPY_AUTO) {
+		want_gpu_copy = xshm_server_has_root_copy(data);
+		blog(LOG_INFO, "Server %s root CopyArea captures: %s",
+		     want_gpu_copy ? "guarantees" : "does not guarantee",
+		     want_gpu_copy ? "using GPU copy" : "using SHM readback");
+	}
+
+	if (want_gpu_copy) {
 		if (xshm_gpu_copy_init(data)) {
 			blog(LOG_INFO, "Using GPU copy (no readback)");
 			return;
@@ -362,12 +504,14 @@ static void xshm_update(void *vptr, obs_data_t *settings)
 
 	data->screen_id = obs_data_get_int(settings, "screen");
 	data->show_cursor = obs_data_get_bool(settings, "show_cursor");
-	data->gpu_copy_enabled = obs_data_get_bool(settings, "gpu_copy");
+	data->copy_mode = (int)obs_data_get_int(settings, "copy_mode");
 
 	/* testing override: OBS_XSHM_GPU_COPY=1 forces GPU copy, =0 forces SHM */
 	const char *force_gpu_copy = getenv("OBS_XSHM_GPU_COPY");
 	if (force_gpu_copy && *force_gpu_copy)
-		data->gpu_copy_enabled = strcmp(force_gpu_copy, "0") != 0;
+		data->copy_mode = strcmp(force_gpu_copy, "0") != 0
+					  ? XSHM_COPY_GPU
+					  : XSHM_COPY_SHM;
 	data->advanced = obs_data_get_bool(settings, "advanced");
 	data->server = bstrdup(obs_data_get_string(settings, "server"));
 
@@ -386,7 +530,7 @@ static void xshm_defaults(obs_data_t *defaults)
 {
 	obs_data_set_default_int(defaults, "screen", 0);
 	obs_data_set_default_bool(defaults, "show_cursor", true);
-	obs_data_set_default_bool(defaults, "gpu_copy", false);
+	obs_data_set_default_int(defaults, "copy_mode", XSHM_COPY_AUTO);
 	obs_data_set_default_bool(defaults, "advanced", false);
 	obs_data_set_default_int(defaults, "cut_top", 0);
 	obs_data_set_default_int(defaults, "cut_left", 0);
@@ -514,10 +658,17 @@ static obs_properties_t *xshm_properties(void *vptr)
 				OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_INT);
 	obs_properties_add_bool(props, "show_cursor",
 				obs_module_text("CaptureCursor"));
-	obs_property_t *gpu_copy = obs_properties_add_bool(
-		props, "gpu_copy", obs_module_text("XSHM.GpuCopy"));
+	obs_property_t *copy_mode = obs_properties_add_list(
+		props, "copy_mode", obs_module_text("XSHM.CopyMode"),
+		OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_INT);
+	obs_property_list_add_int(copy_mode, obs_module_text("XSHM.CopyMode.Auto"),
+				  XSHM_COPY_AUTO);
+	obs_property_list_add_int(copy_mode, obs_module_text("XSHM.CopyMode.Gpu"),
+				  XSHM_COPY_GPU);
+	obs_property_list_add_int(copy_mode, obs_module_text("XSHM.CopyMode.Shm"),
+				  XSHM_COPY_SHM);
 	obs_property_set_long_description(
-		gpu_copy, obs_module_text("XSHM.GpuCopy.Description"));
+		copy_mode, obs_module_text("XSHM.CopyMode.Description"));
 	obs_property_t *advanced = obs_properties_add_bool(
 		props, "advanced", obs_module_text("AdvancedSettings"));
 

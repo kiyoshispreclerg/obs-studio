@@ -762,6 +762,13 @@ OBS_DEPRECATED
 EXPORT void obs_render_main_view(void);
 #endif
 
+/**
+ * Redraws displays (previews, projectors, multiview) only on every Nth video
+ * frame, to save GPU and compositor work. 0 or 1 redraws on every frame.
+ */
+EXPORT void obs_set_display_fps_divisor(uint32_t divisor);
+EXPORT uint32_t obs_get_display_fps_divisor(void);
+
 /** Renders the last main output texture */
 EXPORT void obs_render_main_texture(void);
 

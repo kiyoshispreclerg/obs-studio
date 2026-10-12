@@ -321,6 +321,7 @@ extern void obs_free_video_mix(struct obs_core_video_mix *video);
 
 struct obs_core_video {
 	graphics_t *graphics;
+	volatile long display_fps_divisor;
 	gs_effect_t *default_effect;
 	gs_effect_t *default_rect_effect;
 	gs_effect_t *opaque_effect;
@@ -504,6 +505,7 @@ struct obs_graphics_context {
 	uint64_t frame_time_total_ns;
 	uint64_t fps_total_ns;
 	uint32_t fps_total_frames;
+	uint32_t display_frame;
 	const char *video_thread_name;
 };
 

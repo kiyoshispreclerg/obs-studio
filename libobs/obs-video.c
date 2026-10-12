@@ -1216,9 +1216,15 @@ bool obs_graphics_thread_loop(struct obs_graphics_context *context)
 	output_frames();
 	profile_end(output_frame_name);
 
-	profile_start(render_displays_name);
-	render_displays();
-	profile_end(render_displays_name);
+	/* Previews and projectors only redraw on every Nth frame */
+	const long divisor =
+		os_atomic_load_long(&obs->video.display_fps_divisor);
+	if (++context->display_frame >= (uint32_t)divisor) {
+		context->display_frame = 0;
+		profile_start(render_displays_name);
+		render_displays();
+		profile_end(render_displays_name);
+	}
 
 	execute_graphics_tasks();
 
@@ -1277,6 +1283,7 @@ void *obs_graphics_thread(void *param)
 	context.frame_time_total_ns = 0;
 	context.fps_total_ns = 0;
 	context.fps_total_frames = 0;
+	context.display_frame = 0;
 	context.last_time = 0;
 	context.video_thread_name = video_thread_name;
 

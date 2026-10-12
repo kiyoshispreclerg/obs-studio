@@ -2211,6 +2211,26 @@ static void obs_render_main_texture_internal(enum gs_blend_type src_c,
 	gs_enable_framebuffer_srgb(previous);
 }
 
+void obs_set_display_fps_divisor(uint32_t divisor)
+{
+	if (!obs)
+		return;
+
+	if (divisor < 1)
+		divisor = 1;
+	os_atomic_set_long(&obs->video.display_fps_divisor, (long)divisor);
+	blog(LOG_INFO, "Displays render every %" PRIu32 " frame(s)", divisor);
+}
+
+uint32_t obs_get_display_fps_divisor(void)
+{
+	if (!obs)
+		return 1;
+
+	long divisor = os_atomic_load_long(&obs->video.display_fps_divisor);
+	return divisor < 1 ? 1 : (uint32_t)divisor;
+}
+
 void obs_render_main_texture(void)
 {
 	obs_render_main_texture_internal(GS_BLEND_ONE, GS_BLEND_INVSRCALPHA,

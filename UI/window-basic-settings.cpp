@@ -399,6 +399,7 @@ OBSBasicSettings::OBSBasicSettings(QWidget *parent)
 	HookWidget(ui->previewSafeAreas,     CHECK_CHANGED,  GENERAL_CHANGED);
 	HookWidget(ui->automaticSearch,      CHECK_CHANGED,  GENERAL_CHANGED);
 	HookWidget(ui->previewSpacingHelpers,CHECK_CHANGED,  GENERAL_CHANGED);
+	HookWidget(ui->previewFPSDivisor,    COMBO_CHANGED,  GENERAL_CHANGED);
 	HookWidget(ui->doubleClickSwitch,    CHECK_CHANGED,  GENERAL_CHANGED);
 	HookWidget(ui->studioPortraitLayout, CHECK_CHANGED,  GENERAL_CHANGED);
 	HookWidget(ui->prevProgLabelToggle,  CHECK_CHANGED,  GENERAL_CHANGED);
@@ -1473,6 +1474,23 @@ void OBSBasicSettings::LoadGeneralSettings()
 	bool spacingHelpersEnabled = config_get_bool(
 		GetGlobalConfig(), "BasicWindow", "SpacingHelpersEnabled");
 	ui->previewSpacingHelpers->setChecked(spacingHelpersEnabled);
+
+	struct obs_video_info ovi = {};
+	obs_get_video_info(&ovi);
+	double fps = ovi.fps_den ? (double)ovi.fps_num / ovi.fps_den : 0.0;
+	ui->previewFPSDivisor->clear();
+	ui->previewFPSDivisor->addItem(
+		QTStr("Basic.Settings.General.PreviewFPS.Full"), 1);
+	for (int divisor = 2; divisor <= 4; divisor++)
+		ui->previewFPSDivisor->addItem(
+			QTStr("Basic.Settings.General.PreviewFPS.Divided")
+				.arg(divisor)
+				.arg(fps / divisor, 0, 'g', 4),
+			divisor);
+	uint32_t previewFPSDivisor = config_get_uint(
+		GetGlobalConfig(), "BasicWindow", "PreviewFPSDivisor");
+	int idx = ui->previewFPSDivisor->findData(previewFPSDivisor);
+	ui->previewFPSDivisor->setCurrentIndex(idx == -1 ? 0 : idx);
 
 	bool warnBeforeStreamStop = config_get_bool(
 		GetGlobalConfig(), "BasicWindow", "WarnBeforeStoppingStream");
@@ -3431,6 +3449,14 @@ void OBSBasicSettings::SaveGeneralSettings()
 				"SpacingHelpersEnabled",
 				ui->previewSpacingHelpers->isChecked());
 		main->UpdatePreviewSpacingHelpers();
+	}
+
+	if (WidgetChanged(ui->previewFPSDivisor)) {
+		uint32_t divisor =
+			ui->previewFPSDivisor->currentData().toUInt();
+		config_set_uint(GetGlobalConfig(), "BasicWindow",
+				"PreviewFPSDivisor", divisor);
+		obs_set_display_fps_divisor(divisor);
 	}
 
 	if (WidgetChanged(ui->doubleClickSwitch))

@@ -2089,6 +2089,9 @@ void OBSBasic::OBSInit()
 
 	InitPrimitives();
 
+	obs_set_display_fps_divisor(config_get_uint(
+		App()->GlobalConfig(), "BasicWindow", "PreviewFPSDivisor"));
+
 	sceneDuplicationMode = config_get_bool(
 		App()->GlobalConfig(), "BasicWindow", "SceneDuplicationMode");
 	swapScenesMode = config_get_bool(App()->GlobalConfig(), "BasicWindow",

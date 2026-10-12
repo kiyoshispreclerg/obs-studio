@@ -234,9 +234,11 @@ void gs_texture_unmap(gs_texture_t *tex)
 	if (!gl_bind_texture(GL_TEXTURE_2D, tex2d->base.texture))
 		goto failed;
 
-	glTexImage2D(GL_TEXTURE_2D, 0, tex->gl_internal_format, tex2d->width,
-		     tex2d->height, 0, tex->gl_format, tex->gl_type, 0);
-	if (!gl_success("glTexImage2D"))
+	/* The storage was already allocated at creation, so only replace the
+	 * contents instead of re-specifying (and reallocating) the texture */
+	glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, tex2d->width, tex2d->height,
+			tex->gl_format, tex->gl_type, 0);
+	if (!gl_success("glTexSubImage2D"))
 		goto failed;
 
 	gl_bind_buffer(GL_PIXEL_UNPACK_BUFFER, 0);

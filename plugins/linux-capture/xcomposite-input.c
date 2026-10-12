@@ -642,8 +642,12 @@ static void xcompcap_video_tick(void *data, float seconds)
 	while ((event = xcb_poll_for_queued_event(conn)))
 		watcher_process(event);
 
+	// One round trip per frame is enough: nothing below can change whether
+	// the window exists before it is searched again.
+	bool window_exists = s->win && xcomp_window_exists(conn, s->win);
+
 	// Send an unhooked signal if the window isn't found anymore
-	if (s->window_hooked && !xcomp_window_exists(conn, s->win)) {
+	if (s->window_hooked && !window_exists) {
 		s->window_hooked = false;
 
 		signal_handler_t *sh = obs_source_get_signal_handler(s->source);
@@ -655,7 +659,7 @@ static void xcompcap_video_tick(void *data, float seconds)
 
 	// Reacquire window after interval or immediately if reconfigured.
 	s->window_check_time += seconds;
-	bool window_lost = !xcomp_window_exists(conn, s->win) || !s->gltex;
+	bool window_lost = !window_exists || !s->gltex;
 	if ((window_lost && s->window_check_time > FIND_WINDOW_INTERVAL) ||
 	    s->window_changed) {
 		watcher_unregister(conn, s);

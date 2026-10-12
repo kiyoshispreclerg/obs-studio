@@ -69,6 +69,7 @@ static bool create_pixel_unpack_buffer(struct gs_texture_2d *tex)
 	glBufferData(GL_PIXEL_UNPACK_BUFFER, size, 0, GL_DYNAMIC_DRAW);
 	if (!gl_success("glBufferData"))
 		success = false;
+	tex->unpack_size = size;
 
 	if (!gl_bind_buffer(GL_PIXEL_UNPACK_BUFFER, 0))
 		success = false;
@@ -203,8 +204,13 @@ bool gs_texture_map(gs_texture_t *tex, uint8_t **ptr, uint32_t *linesize)
 	if (!gl_bind_buffer(GL_PIXEL_UNPACK_BUFFER, tex2d->unpack_buffer))
 		goto fail;
 
-	*ptr = glMapBuffer(GL_PIXEL_UNPACK_BUFFER, GL_WRITE_ONLY);
-	if (!gl_success("glMapBuffer"))
+	/* The whole buffer is rewritten on every map, so let the driver hand
+	 * out fresh storage instead of waiting for the GPU to finish reading
+	 * the previous upload */
+	*ptr = glMapBufferRange(GL_PIXEL_UNPACK_BUFFER, 0, tex2d->unpack_size,
+				GL_MAP_WRITE_BIT |
+					GL_MAP_INVALIDATE_BUFFER_BIT);
+	if (!gl_success("glMapBufferRange"))
 		goto fail;
 
 	gl_bind_buffer(GL_PIXEL_UNPACK_BUFFER, 0);

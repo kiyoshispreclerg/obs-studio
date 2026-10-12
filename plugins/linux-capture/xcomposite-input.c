@@ -104,6 +104,7 @@ bool xcomp_window_exists(xcb_connection_t *conn, xcb_window_t win)
 		xcb_get_window_attributes_reply(conn, attr_cookie, &err);
 
 	bool exists = err == NULL && attr->map_state == XCB_MAP_STATE_VIEWABLE;
+	free(err);
 	free(attr);
 	return exists;
 }
@@ -121,6 +122,7 @@ xcb_get_property_reply_t *xcomp_property_sync(xcb_connection_t *conn,
 	xcb_get_property_reply_t *prop =
 		xcb_get_property_reply(conn, prop_cookie, &err);
 	if (err != NULL || xcb_get_property_value_length(prop) == 0) {
+		free(err);
 		free(prop);
 		return NULL;
 	}
@@ -261,6 +263,7 @@ struct darray xcomp_top_level_windows(xcb_connection_t *conn)
 		xcb_get_property_reply_t *cl_list =
 			xcb_get_property_reply(conn, cl_list_cookie, &err);
 		if (err != NULL) {
+			free(err);
 			goto done;
 		}
 
@@ -379,6 +382,8 @@ void xcomp_create_pixmap(xcb_connection_t *conn, struct xcompcap *s,
 	xcb_get_geometry_reply_t *geom =
 		xcb_get_geometry_reply(conn, geom_cookie, &err);
 	if (err != NULL) {
+		free(err);
+		free(geom);
 		return;
 	}
 
@@ -406,6 +411,7 @@ void xcomp_create_pixmap(xcb_connection_t *conn, struct xcompcap *s,
 	err = NULL;
 	if ((err = xcb_request_check(conn, name_cookie)) != NULL) {
 		blog(log_level, "xcb_composite_name_window_pixmap failed");
+		free(err);
 		s->pixmap = 0;
 		return;
 	}

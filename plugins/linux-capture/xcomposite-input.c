@@ -24,6 +24,7 @@
 
 #define WIN_STRING_DIV "\r\n"
 #define FIND_WINDOW_INTERVAL 0.5
+#define WINDOW_CHECK_INTERVAL 0.1
 
 static Display *disp = NULL;
 static xcb_connection_t *conn = NULL;
@@ -51,6 +52,8 @@ struct xcompcap {
 	bool exclude_alpha;
 
 	float window_check_time;
+	float exists_check_time;
+	bool window_exists;
 	bool window_changed;
 	bool window_hooked;
 
@@ -642,9 +645,19 @@ static void xcompcap_video_tick(void *data, float seconds)
 	while ((event = xcb_poll_for_queued_event(conn)))
 		watcher_process(event);
 
-	// One round trip per frame is enough: nothing below can change whether
-	// the window exists before it is searched again.
-	bool window_exists = s->win && xcomp_window_exists(conn, s->win);
+	// Asking the X server whether the window still exists is a round trip
+	// (tens of microseconds, with the graphics context held), so don't do
+	// it on every frame. A hooked window is checked every
+	// WINDOW_CHECK_INTERVAL (its pixmap stays valid even if the window is
+	// gone), a missing one only before searching for it again.
+	s->exists_check_time += seconds;
+	float check_interval = s->window_hooked ? WINDOW_CHECK_INTERVAL
+						: FIND_WINDOW_INTERVAL;
+	if (s->window_changed || s->exists_check_time >= check_interval) {
+		s->window_exists = s->win && xcomp_window_exists(conn, s->win);
+		s->exists_check_time = 0.0f;
+	}
+	bool window_exists = s->window_exists;
 
 	// Send an unhooked signal if the window isn't found anymore
 	if (s->window_hooked && !window_exists) {
@@ -688,6 +701,8 @@ static void xcompcap_video_tick(void *data, float seconds)
 		}
 
 		watcher_register(conn, s);
+		s->window_exists = s->window_hooked;
+		s->exists_check_time = 0.0f;
 		xcomp_cleanup_pixmap(disp, s);
 		// Avoid excessive logging. We expect this to fail while windows are
 		// minimized or on offscreen workspaces or already captured on NVIDIA.
@@ -883,6 +898,8 @@ static void xcompcap_update(void *data, obs_data_t *settings)
 	}
 	bfree(prev_name);
 
+	// Check the (possibly new) window on the next tick
+	s->exists_check_time = FIND_WINDOW_INTERVAL;
 	s->win = xcomp_find_window(conn, disp, s->windowName);
 	if (!s->window_hooked && xcomp_window_exists(conn, s->win)) {
 		s->window_hooked = true;

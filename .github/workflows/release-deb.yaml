@@ -9,13 +9,19 @@ permissions:
   contents: read
 jobs:
   build-deb:
-    name: Ubuntu ${{ matrix.ubuntu }} 🐧
+    name: ${{ matrix.name }} 🐧
     runs-on: ubuntu-latest
-    container: ubuntu:${{ matrix.ubuntu }}
+    container: ${{ matrix.image }}
     strategy:
       fail-fast: false
       matrix:
-        ubuntu: ['22.04', '24.04', '26.04']
+        include:
+          - {name: Ubuntu 22.04, image: 'ubuntu:22.04', id: ubuntu-22.04}
+          - {name: Ubuntu 24.04, image: 'ubuntu:24.04', id: ubuntu-24.04}
+          - {name: Ubuntu 26.04, image: 'ubuntu:26.04', id: ubuntu-26.04}
+          # Devuan Daedalus = Debian 12; Devuan Excalibur = Debian 13
+          - {name: Debian 12 (Devuan Daedalus), image: 'debian:12', id: debian-12}
+          - {name: Debian 13 (Devuan Excalibur), image: 'debian:13', id: debian-13}
     env:
       DEBIAN_FRONTEND: noninteractive
     steps:
@@ -44,16 +50,16 @@ jobs:
             libluajit-5.1-dev python3-dev swig libcmocka-dev \
             libx11-dev libxcb-randr0-dev libxcb-shm0-dev libxcb-xinerama0-dev \
             libxcb-composite0-dev libxinerama-dev libxcb1-dev libxcb-xfixes0-dev libxss-dev \
-            libxkbcommon-dev libasound2-dev libfdk-aac-dev libfontconfig-dev libfreetype6-dev \
+            libxkbcommon-dev libasound2-dev  libfontconfig-dev libfreetype6-dev \
             libjack-jackd2-dev libsndio-dev libspeexdsp-dev libudev-dev libv4l-dev libva-dev \
             libvlc-dev libpci-dev libdrm-dev \
-            nlohmann-json3-dev libwebsocketpp-dev libasio-dev libqrcodegencpp-dev \
+            nlohmann-json3-dev libwebsocketpp-dev libasio-dev \
             qt6-base-dev libqt6svg6-dev qt6-base-private-dev
-          # Não existem em todas as versões (o OBS desliga o recurso se faltar)
-          apt-get install -y --no-install-recommends libvpl-dev libvpl2 || true
-          if [ "$(lsb_release -rs)" != "22.04" ]; then
-            apt-get install -y --no-install-recommends librist-dev libsrt-openssl-dev
-          fi
+          # Opcionais: não existem em todas as versões (o OBS desliga o recurso se faltar)
+          # libfdk-aac-dev fica em non-free no Debian
+          for p in libvpl-dev libvpl2 libfdk-aac-dev libqrcodegencpp-dev librist-dev libsrt-openssl-dev; do
+            apt-get install -y --no-install-recommends "$p" || echo "::warning::pacote opcional indisponível: $p"
+          done
 
       - name: Download CEF 🌐
         run: |
@@ -72,7 +78,10 @@ jobs:
         shell: bash
         run: |
           extra=""
-          [ "$(lsb_release -rs)" = "22.04" ] && extra="-DENABLE_NEW_MPEGTS_OUTPUT=OFF"
+          # Sem librist/srt (Ubuntu 22.04) o novo output mpegts não compila
+          if [ "$(lsb_release -is)-$(lsb_release -rs)" = "Ubuntu-22.04" ]; then
+            extra="-DENABLE_NEW_MPEGTS_OUTPUT=OFF"
+          fi
           # O fork não tem as tags do upstream: define a versão explicitamente
           if [[ "$GITHUB_REF_TYPE" == tag && "$GITHUB_REF_NAME" =~ ^v?([0-9]+\.[0-9]+\.[0-9]+.*)$ ]]; then
             ver="${BASH_REMATCH[1]}"
@@ -95,7 +104,7 @@ jobs:
         run: |
           cmake --build build -t package
           cd build
-          rel="ubuntu$(lsb_release -rs)"
+          rel="${{ matrix.id }}"
           for f in obs-studio-*.deb obs-studio-*.ddeb; do
             [ -e "$f" ] || continue
             mv "$f" "${f%.*}-${rel}.${f##*.}"
@@ -104,7 +113,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: deb-ubuntu-${{ matrix.ubuntu }}
+          name: deb-${{ matrix.id }}
           path: |
             build/*.deb
             build/*.ddeb
@@ -119,7 +128,7 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          pattern: deb-ubuntu-*
+          pattern: deb-*
           merge-multiple: true
           path: debs
 

@@ -30,6 +30,13 @@
 #include <libavutil/channel_layout.h>
 #include <libavutil/mastering_display_metadata.h>
 
+/* The write callback of avio_alloc_context() takes a const buffer since FFmpeg 7.0 */
+#if LIBAVFORMAT_VERSION_MAJOR >= 61
+#define AVIO_WRITE_BUF_TYPE const uint8_t
+#else
+#define AVIO_WRITE_BUF_TYPE uint8_t
+#endif
+
 /* ------------------------------------------------------------------------- */
 #define do_log(level, format, ...)                              \
 	blog(level, "[obs-ffmpeg mpegts muxer: '%s']: " format, \
@@ -437,13 +444,17 @@ static inline int allocate_custom_aviocontext(struct ffmpeg_output *stream,
 		return AVERROR(ENOMEM);
 	/* allocate custom avio_context */
 	if (is_rist)
-		s = avio_alloc_context(
-			buffer, buffer_size, AVIO_FLAG_WRITE, h, NULL,
-			(int (*)(void *, uint8_t *, int))librist_write, NULL);
+		s = avio_alloc_context(buffer, buffer_size, AVIO_FLAG_WRITE, h,
+				       NULL,
+				       (int (*)(void *, AVIO_WRITE_BUF_TYPE *,
+						int))librist_write,
+				       NULL);
 	else
-		s = avio_alloc_context(
-			buffer, buffer_size, AVIO_FLAG_WRITE, h, NULL,
-			(int (*)(void *, uint8_t *, int))libsrt_write, NULL);
+		s = avio_alloc_context(buffer, buffer_size, AVIO_FLAG_WRITE, h,
+				       NULL,
+				       (int (*)(void *, AVIO_WRITE_BUF_TYPE *,
+						int))libsrt_write,
+				       NULL);
 	if (!s)
 		goto fail;
 	s->max_packet_size = h->max_packet_size;

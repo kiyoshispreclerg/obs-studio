@@ -64,6 +64,13 @@ jobs:
             apt-get install -y --no-install-recommends "$p" || echo "::warning::pacote opcional indisponível: $p"
           done
 
+      - name: Patch obs-websocket for newer Qt 🩹
+        run: |
+          # O submódulo não inclui <QTextStream> explicitamente (Qt 6.10 não o traz mais por tabela)
+          f=plugins/obs-websocket/src/utils/Platform.cpp
+          grep -q '#include <QTextStream>' "$f" || sed -i '0,/^#include/s//#include <QTextStream>\n#include/' "$f"
+          grep -n 'QTextStream>' "$f"
+
       - name: Download CEF 🌐
         run: |
           set -e

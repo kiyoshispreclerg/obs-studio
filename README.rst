@@ -23,7 +23,7 @@ based on version 30.1.2, with a few performance and bug-fix changes:
 
 CI is intentionally minimal: pushes and pull requests run the formatting
 checks (clang-format, cmake-format, Qt XML), and pushing a tag builds ``.deb`` packages for the
-Ubuntu LTS releases (22.04, 24.04 and 26.04) and for Debian 12 and 13 (usable on Devuan Daedalus and Excalibur) and attaches them to a GitHub
+Ubuntu LTS releases (22.04 and 24.04) and for Debian 12 and 13 (usable on Devuan Daedalus and Excalibur) and attaches them to a GitHub
 release (see ``.github/workflows/release-deb.yaml``). Tags should look like
 ``30.1.3`` or ``v30.1.3``, since the version is taken from the tag name. The
 other upstream workflows were removed from this fork.

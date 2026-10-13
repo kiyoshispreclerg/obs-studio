@@ -18,7 +18,6 @@ jobs:
         include:
           - {name: Ubuntu 22.04, image: 'ubuntu:22.04', id: ubuntu-22.04}
           - {name: Ubuntu 24.04, image: 'ubuntu:24.04', id: ubuntu-24.04}
-          - {name: Ubuntu 26.04, image: 'ubuntu:26.04', id: ubuntu-26.04}
           # Devuan Daedalus = Debian 12; Devuan Excalibur = Debian 13
           - {name: Debian 12 (Devuan Daedalus), image: 'debian:12', id: debian-12}
           - {name: Debian 13 (Devuan Excalibur), image: 'debian:13', id: debian-13}
@@ -63,13 +62,6 @@ jobs:
           for p in libvpl-dev libvpl2 libfdk-aac-dev libqrcodegencpp-dev librist-dev libsrt-openssl-dev; do
             apt-get install -y --no-install-recommends "$p" || echo "::warning::pacote opcional indisponível: $p"
           done
-
-      - name: Patch obs-websocket for newer Qt 🩹
-        run: |
-          # O submódulo não inclui <QTextStream> explicitamente (Qt 6.10 não o traz mais por tabela)
-          f=plugins/obs-websocket/src/utils/Platform.cpp
-          grep -q '#include <QTextStream>' "$f" || sed -i '0,/^#include/s//#include <QTextStream>\n#include/' "$f"
-          grep -n 'QTextStream>' "$f"
 
       - name: Download CEF 🌐
         run: |

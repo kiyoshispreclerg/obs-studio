@@ -2372,6 +2372,12 @@ static int run_program(fstream &logFile, int argc, char *argv[])
 
 	setenv("QT_STYLE_OVERRIDE", "Fusion", false);
 
+	/* NOTE: Mesa's glthread moves GL calls to a worker thread of its own,
+	 * but OBS already makes all of its GL calls from a dedicated graphics
+	 * thread, so it only adds overhead. It can still be turned back on by
+	 * setting the variable explicitly. */
+	setenv("mesa_glthread", "false", false);
+
 	/* NOTE: Users blindly set this, but this theme is incompatble with Qt6 and
 	 * crashes loading saved geometry. Just turn off this theme and let users complain OBS
 	 * looks ugly instead of crashing. */

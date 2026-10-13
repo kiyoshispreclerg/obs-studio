@@ -1,0 +1,132 @@
+name: Release .deb
+run-name: .deb packages (${{ github.ref_name }})
+on:
+  push:
+    tags:
+      - '*'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build-deb:
+    name: Ubuntu ${{ matrix.ubuntu }} 🐧
+    runs-on: ubuntu-latest
+    container: ubuntu:${{ matrix.ubuntu }}
+    strategy:
+      fail-fast: false
+      matrix:
+        ubuntu: ['22.04', '24.04', '26.04']
+    env:
+      DEBIAN_FRONTEND: noninteractive
+    steps:
+      - name: Install base tools 🛍️
+        run: |
+          apt-get update -qq
+          apt-get install -y --no-install-recommends \
+            ca-certificates git curl jq xz-utils build-essential cmake ninja-build \
+            pkg-config lsb-release file ccache
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Install dependencies 🛍️
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          apt-get install -y --no-install-recommends \
+            libcurl4-openssl-dev \
+            libavcodec-dev libavdevice-dev libavfilter-dev libavformat-dev libavutil-dev \
+            libswresample-dev libswscale-dev \
+            libjansson-dev libx11-xcb-dev libwayland-dev libpipewire-0.3-dev libpulse-dev \
+            libx264-dev libmbedtls-dev libgl1-mesa-dev libglvnd-dev libegl-dev libgles-dev \
+            libluajit-5.1-dev python3-dev swig libcmocka-dev \
+            libx11-dev libxcb-randr0-dev libxcb-shm0-dev libxcb-xinerama0-dev \
+            libxcb-composite0-dev libxinerama-dev libxcb1-dev libxcb-xfixes0-dev libxss-dev \
+            libxkbcommon-dev libasound2-dev libfdk-aac-dev libfontconfig-dev libfreetype6-dev \
+            libjack-jackd2-dev libsndio-dev libspeexdsp-dev libudev-dev libv4l-dev libva-dev \
+            libvlc-dev libpci-dev libdrm-dev \
+            nlohmann-json3-dev libwebsocketpp-dev libasio-dev libqrcodegencpp-dev \
+            qt6-base-dev libqt6svg6-dev qt6-base-private-dev
+          # Não existem em todas as versões (o OBS desliga o recurso se faltar)
+          apt-get install -y --no-install-recommends libvpl-dev libvpl2 || true
+          if [ "$(lsb_release -rs)" != "22.04" ]; then
+            apt-get install -y --no-install-recommends librist-dev libsrt-openssl-dev
+          fi
+
+      - name: Download CEF 🌐
+        run: |
+          set -e
+          ver=$(jq -r '.dependencies.cef.version' buildspec.json)
+          base=$(jq -r '.dependencies.cef.baseUrl' buildspec.json)
+          hash=$(jq -r '.dependencies.cef.hashes["linux-x86_64"]' buildspec.json)
+          rev=$(jq -r '.dependencies.cef.revision["linux-x86_64"] // empty' buildspec.json)
+          file="cef_binary_${ver}_linux_x86_64${rev:+_v$rev}.tar.xz"
+          mkdir -p .deps/cef && cd .deps
+          curl -fsSL -O "$base/$file"
+          echo "$hash  $file" | sha256sum -c -
+          tar --strip-components 1 -C cef -xJf "$file"
+
+      - name: Configure ⚙️
+        shell: bash
+        run: |
+          extra=""
+          [ "$(lsb_release -rs)" = "22.04" ] && extra="-DENABLE_NEW_MPEGTS_OUTPUT=OFF"
+          # O fork não tem as tags do upstream: define a versão explicitamente
+          if [[ "$GITHUB_REF_TYPE" == tag && "$GITHUB_REF_NAME" =~ ^v?([0-9]+\.[0-9]+\.[0-9]+.*)$ ]]; then
+            ver="${BASH_REMATCH[1]}"
+          else
+            ver="30.1.2-git${GITHUB_SHA::8}"
+          fi
+          echo "OBS_VERSION_OVERRIDE=$ver"
+          cmake -S . -B build -G Ninja \
+            -DOBS_VERSION_OVERRIDE="$ver" \
+            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+            -DCEF_ROOT_DIR="$PWD/.deps/cef" \
+            -DENABLE_BROWSER=ON \
+            -DENABLE_AJA=OFF -DENABLE_WEBRTC=OFF \
+            $extra
+
+      - name: Build 🧱
+        run: cmake --build build --parallel
+
+      - name: Package 📦
+        run: |
+          cmake --build build -t package
+          cd build
+          rel="ubuntu$(lsb_release -rs)"
+          for f in obs-studio-*.deb obs-studio-*.ddeb; do
+            [ -e "$f" ] || continue
+            mv "$f" "${f%.*}-${rel}.${f##*.}"
+          done
+          ls -l *.deb *.ddeb 2>/dev/null
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: deb-ubuntu-${{ matrix.ubuntu }}
+          path: |
+            build/*.deb
+            build/*.ddeb
+
+  release:
+    name: Publish release 🚀
+    if: github.ref_type == 'tag' && !cancelled()
+    needs: build-deb
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: deb-ubuntu-*
+          merge-multiple: true
+          path: debs
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          ls -l debs
+          gh release create "${{ github.ref_name }}" debs/*.deb debs/*.ddeb \
+            --title "${{ github.ref_name }}" --generate-notes --prerelease

@@ -1,10 +1,6 @@
 OBS Studio <https://obsproject.com>
 ===================================
 
-.. image:: https://github.com/obsproject/obs-studio/actions/workflows/push.yaml/badge.svg?branch=master
-   :alt: OBS Studio Build Status - GitHub Actions
-   :target: https://github.com/obsproject/obs-studio/actions/workflows/push.yaml?query=branch%3Amaster
-
 .. image:: https://badges.crowdin.net/obs-studio/localized.svg
    :alt: OBS Studio Translation Project Progress
    :target: https://crowdin.com/project/obs-studio
@@ -12,6 +8,25 @@ OBS Studio <https://obsproject.com>
 .. image:: https://img.shields.io/discord/348973006581923840.svg?label=&logo=discord&logoColor=ffffff&color=7389D8&labelColor=6A7EC2
    :alt: OBS Studio Discord Server
    :target: https://obsproject.com/discord
+
+About this fork
+---------------
+
+This is a personal fork of `OBS Studio <https://github.com/obsproject/obs-studio>`_,
+based on version 30.1.2, with a few performance and bug-fix changes:
+
+- Fix for the VRAM/X11 window leak when toggling the preview (EGL swapchain).
+- Optional per-source CPU cost profiler (``OBS_SOURCE_PROFILER=1``).
+- XSHM screen capture with GPU copy (``Copy method``: Automatic/GPU/SHM).
+- Fewer X server round trips in the Window Capture (Xcomposite) source.
+- Preview refresh rate setting (General > Preview).
+
+CI is intentionally minimal: pushes and pull requests run the formatting
+checks (clang-format, cmake-format, Qt XML), and pushing a tag builds ``.deb`` packages for the
+Ubuntu LTS releases (22.04, 24.04 and 26.04) and attaches them to a GitHub
+release (see ``.github/workflows/release-deb.yaml``). Tags should look like
+``30.1.3`` or ``v30.1.3``, since the version is taken from the tag name. The
+other upstream workflows were removed from this fork.
 
 What is OBS Studio?
 -------------------

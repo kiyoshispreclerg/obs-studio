@@ -1,6 +1,15 @@
 name: Check Code Formatting 🛠️
 on:
-  workflow_call:
+  push:
+    paths-ignore:
+      - '**.md'
+    branches: [master]
+  pull_request:
+    paths-ignore:
+      - '**.md'
+  workflow_dispatch:
+permissions:
+  contents: read
 jobs:
   clang-format:
     runs-on: ubuntu-22.04
@@ -14,18 +23,6 @@ jobs:
         with:
           failCondition: error
 
-  swift-format:
-    runs-on: macos-14
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: swift-format Check 🔥
-        id: swift-format
-        uses: ./.github/actions/run-swift-format
-        with:
-          failCondition: error
-
   cmake-format:
     runs-on: ubuntu-22.04
     steps:
@@ -35,18 +32,6 @@ jobs:
       - name: cmake-format Check 🎛️
         id: cmake-format
         uses: ./.github/actions/run-cmake-format
-        with:
-          failCondition: error
-
-  flatpak-validator:
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: Flatpak Manifest Check 📦
-        id: flatpak-check
-        uses: ./.github/actions/flatpak-manifest-validator
         with:
           failCondition: error
 

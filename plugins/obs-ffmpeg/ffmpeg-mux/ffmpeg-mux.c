@@ -886,7 +886,14 @@ static int64_t ffmpeg_mux_seek_av_buffer(void *opaque, int64_t offset,
 	return 0;
 }
 
-static int ffmpeg_mux_write_av_buffer(void *opaque, uint8_t *buf, int buf_size)
+/* The write callback of avio_alloc_context() takes a const buffer since FFmpeg 7.0 */
+#if LIBAVFORMAT_VERSION_MAJOR >= 61
+#define FFMPEG_MUX_WRITE_BUF_TYPE const uint8_t
+#else
+#define FFMPEG_MUX_WRITE_BUF_TYPE uint8_t
+#endif
+
+static int ffmpeg_mux_write_av_buffer(void *opaque, FFMPEG_MUX_WRITE_BUF_TYPE *buf, int buf_size)
 {
 	struct ffmpeg_mux *ffm = opaque;
 

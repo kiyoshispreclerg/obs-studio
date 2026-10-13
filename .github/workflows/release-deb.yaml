@@ -103,7 +103,16 @@ jobs:
             $extra
 
       - name: Build 🧱
-        run: cmake --build build --parallel
+        shell: bash
+        run: |
+          # -k 0 continua após falhas, para o log listar todos os erros de uma vez
+          if ! cmake --build build --parallel -- -k 0 > build.log 2>&1; then
+            echo "::group::Erros de compilação"
+            grep -n -E -B1 -A6 "error:|FAILED|undefined reference" build.log | head -400
+            echo "::endgroup::"
+            exit 1
+          fi
+          tail -3 build.log
 
       - name: Package 📦
         run: |

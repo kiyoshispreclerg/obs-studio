@@ -39,6 +39,17 @@
 #include <libavformat/avformat.h>
 #include <libavfilter/avfilter.h>
 
+/* The FF_PROFILE and FF_LEVEL macros were removed in FFmpeg 8.0 (use AV_PROFILE and AV_LEVEL) */
+#ifndef AV_PROFILE_H264_HIGH
+#define AV_PROFILE_H264_CONSTRAINED_BASELINE FF_PROFILE_H264_CONSTRAINED_BASELINE
+#define AV_PROFILE_H264_MAIN FF_PROFILE_H264_MAIN
+#define AV_PROFILE_H264_HIGH FF_PROFILE_H264_HIGH
+#define AV_PROFILE_HEVC_MAIN FF_PROFILE_HEVC_MAIN
+#define AV_PROFILE_HEVC_MAIN_10 FF_PROFILE_HEVC_MAIN_10
+#define AV_PROFILE_AV1_MAIN FF_PROFILE_AV1_MAIN
+#define AV_LEVEL_UNKNOWN FF_LEVEL_UNKNOWN
+#endif
+
 #include <pci/pci.h>
 
 #include "vaapi-utils.h"
@@ -275,10 +286,10 @@ static bool vaapi_update(void *data, obs_data_t *settings)
 
 #ifdef ENABLE_HEVC
 	if (enc->codec == CODEC_HEVC) {
-		if ((profile == FF_PROFILE_HEVC_MAIN) &&
+		if ((profile == AV_PROFILE_HEVC_MAIN) &&
 		    (info.format == VIDEO_FORMAT_P010)) {
 			warn("Forcing Main10 for P010");
-			profile = FF_PROFILE_HEVC_MAIN_10;
+			profile = AV_PROFILE_HEVC_MAIN_10;
 		}
 	}
 #endif
@@ -665,16 +676,16 @@ static void vaapi_defaults_internal(obs_data_t *settings, enum codec_type codec)
 #ifdef ENABLE_HEVC
 	if (codec == CODEC_HEVC)
 		obs_data_set_default_int(settings, "profile",
-					 FF_PROFILE_HEVC_MAIN);
+					 AV_PROFILE_HEVC_MAIN);
 	else
 #endif
 		if (codec == CODEC_H264)
 		obs_data_set_default_int(settings, "profile",
-					 FF_PROFILE_H264_HIGH);
+					 AV_PROFILE_H264_HIGH);
 	else if (codec == CODEC_AV1)
 		obs_data_set_default_int(settings, "profile",
-					 FF_PROFILE_AV1_MAIN);
-	obs_data_set_default_int(settings, "level", FF_LEVEL_UNKNOWN);
+					 AV_PROFILE_AV1_MAIN);
+	obs_data_set_default_int(settings, "level", AV_LEVEL_UNKNOWN);
 	obs_data_set_default_int(settings, "bitrate", 2500);
 	obs_data_set_default_int(settings, "keyint_sec", 0);
 	obs_data_set_default_int(settings, "bf", 0);
@@ -730,33 +741,33 @@ static bool vaapi_device_modified(obs_properties_t *ppts, obs_property_t *p,
 		goto fail;
 
 	switch (profile) {
-	case FF_PROFILE_H264_CONSTRAINED_BASELINE:
+	case AV_PROFILE_H264_CONSTRAINED_BASELINE:
 		if (!vaapi_display_h264_supported(va_dpy, device))
 			goto fail;
 		profile = VAProfileH264ConstrainedBaseline;
 		break;
-	case FF_PROFILE_H264_MAIN:
+	case AV_PROFILE_H264_MAIN:
 		if (!vaapi_display_h264_supported(va_dpy, device))
 			goto fail;
 		profile = VAProfileH264Main;
 		break;
-	case FF_PROFILE_H264_HIGH:
+	case AV_PROFILE_H264_HIGH:
 		if (!vaapi_display_h264_supported(va_dpy, device))
 			goto fail;
 		profile = VAProfileH264High;
 		break;
-	case FF_PROFILE_AV1_MAIN:
+	case AV_PROFILE_AV1_MAIN:
 		if (!vaapi_display_av1_supported(va_dpy, device))
 			goto fail;
 		profile = VAProfileAV1Profile0;
 		break;
 #ifdef ENABLE_HEVC
-	case FF_PROFILE_HEVC_MAIN:
+	case AV_PROFILE_HEVC_MAIN:
 		if (!vaapi_display_hevc_supported(va_dpy, device))
 			goto fail;
 		profile = VAProfileHEVCMain;
 		break;
-	case FF_PROFILE_HEVC_MAIN_10:
+	case AV_PROFILE_HEVC_MAIN_10:
 		if (!vaapi_display_hevc_supported(va_dpy, device))
 			goto fail;
 		profile = VAProfileHEVCMain10;
@@ -915,16 +926,16 @@ static obs_properties_t *vaapi_properties_internal(enum codec_type codec)
 				       OBS_COMBO_TYPE_LIST,
 				       OBS_COMBO_FORMAT_INT);
 	if (codec == CODEC_HEVC) {
-		obs_property_list_add_int(list, "Main", FF_PROFILE_HEVC_MAIN);
+		obs_property_list_add_int(list, "Main", AV_PROFILE_HEVC_MAIN);
 		obs_property_list_add_int(list, "Main10",
-					  FF_PROFILE_HEVC_MAIN_10);
+					  AV_PROFILE_HEVC_MAIN_10);
 	} else if (codec == CODEC_H264) {
 		obs_property_list_add_int(list, "Constrained Baseline",
-					  FF_PROFILE_H264_CONSTRAINED_BASELINE);
-		obs_property_list_add_int(list, "Main", FF_PROFILE_H264_MAIN);
-		obs_property_list_add_int(list, "High", FF_PROFILE_H264_HIGH);
+					  AV_PROFILE_H264_CONSTRAINED_BASELINE);
+		obs_property_list_add_int(list, "Main", AV_PROFILE_H264_MAIN);
+		obs_property_list_add_int(list, "High", AV_PROFILE_H264_HIGH);
 	} else if (codec == CODEC_AV1) {
-		obs_property_list_add_int(list, "Main", FF_PROFILE_AV1_MAIN);
+		obs_property_list_add_int(list, "Main", AV_PROFILE_AV1_MAIN);
 	}
 
 	obs_property_set_modified_callback(list, vaapi_device_modified);
@@ -932,7 +943,7 @@ static obs_properties_t *vaapi_properties_internal(enum codec_type codec)
 	list = obs_properties_add_list(props, "level", obs_module_text("Level"),
 				       OBS_COMBO_TYPE_LIST,
 				       OBS_COMBO_FORMAT_INT);
-	obs_property_list_add_int(list, "Auto", FF_LEVEL_UNKNOWN);
+	obs_property_list_add_int(list, "Auto", AV_LEVEL_UNKNOWN);
 	if (codec == CODEC_H264) {
 		obs_property_list_add_int(list, "3.0", 30);
 		obs_property_list_add_int(list, "3.1", 31);

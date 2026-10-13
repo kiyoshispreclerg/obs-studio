@@ -60,6 +60,7 @@ struct ft2_source {
 
 	uint8_t *texbuf;
 	gs_vertbuffer_t *vbuf;
+	gs_vertbuffer_t *shadow_vbuf;
 
 	gs_effect_t *draw_effect;
 	bool outline_text, drop_shadow;
@@ -103,3 +104,4 @@ void cache_glyphs(struct ft2_source *srcdata, wchar_t *cache_glyphs);
 
 void set_up_vertex_buffer(struct ft2_source *srcdata);
 void fill_vertex_buffer(struct ft2_source *srcdata);
+void set_up_shadow_vertex_buffer(struct ft2_source *srcdata);

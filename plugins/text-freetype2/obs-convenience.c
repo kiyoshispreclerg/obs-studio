@@ -72,7 +72,6 @@ void draw_uv_vbuffer(gs_vertbuffer_t *vbuf, gs_texture_t *tex,
 	const bool previous = gs_framebuffer_srgb_enabled();
 	gs_enable_framebuffer_srgb(linear_srgb);
 
-	gs_vertexbuffer_flush(vbuf);
 	gs_load_vertexbuffer(vbuf);
 	gs_load_indexbuffer(NULL);
 

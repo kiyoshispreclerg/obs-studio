@@ -31,51 +31,33 @@ extern uint32_t texbuf_w, texbuf_h;
 void draw_outlines(struct ft2_source *srcdata)
 {
 	// Horrible (hopefully temporary) solution for outlines.
-	uint32_t *tmp;
-
-	struct gs_vb_data *vdata = gs_vertexbuffer_get_data(srcdata->vbuf);
-
 	if (!srcdata->text)
 		return;
-
-	tmp = vdata->colors;
-	vdata->colors = srcdata->colorbuf;
 
 	gs_matrix_push();
 	for (int32_t i = 0; i < 8; i++) {
 		gs_matrix_translate3f(offsets[i * 2], offsets[(i * 2) + 1],
 				      0.0f);
-		draw_uv_vbuffer(srcdata->vbuf, srcdata->tex,
+		draw_uv_vbuffer(srcdata->shadow_vbuf, srcdata->tex,
 				srcdata->draw_effect,
 				(uint32_t)wcslen(srcdata->text) * 6);
 	}
 	gs_matrix_identity();
 	gs_matrix_pop();
-
-	vdata->colors = tmp;
 }
 
 void draw_drop_shadow(struct ft2_source *srcdata)
 {
 	// Horrible (hopefully temporary) solution for drop shadow.
-	uint32_t *tmp;
-
-	struct gs_vb_data *vdata = gs_vertexbuffer_get_data(srcdata->vbuf);
-
 	if (!srcdata->text)
 		return;
 
-	tmp = vdata->colors;
-	vdata->colors = srcdata->colorbuf;
-
 	gs_matrix_push();
 	gs_matrix_translate3f(4.0f, 4.0f, 0.0f);
-	draw_uv_vbuffer(srcdata->vbuf, srcdata->tex, srcdata->draw_effect,
+	draw_uv_vbuffer(srcdata->shadow_vbuf, srcdata->tex, srcdata->draw_effect,
 			(uint32_t)wcslen(srcdata->text) * 6);
 	gs_matrix_identity();
 	gs_matrix_pop();
-
-	vdata->colors = tmp;
 }
 
 void set_up_vertex_buffer(struct ft2_source *srcdata)
@@ -97,6 +79,11 @@ void set_up_vertex_buffer(struct ft2_source *srcdata)
 	if (srcdata->vbuf != NULL) {
 		gs_vertbuffer_t *tmpvbuf = srcdata->vbuf;
 		srcdata->vbuf = NULL;
+		gs_vertexbuffer_destroy(tmpvbuf);
+	}
+	if (srcdata->shadow_vbuf != NULL) {
+		gs_vertbuffer_t *tmpvbuf = srcdata->shadow_vbuf;
+		srcdata->shadow_vbuf = NULL;
 		gs_vertexbuffer_destroy(tmpvbuf);
 	}
 
@@ -147,7 +134,32 @@ void set_up_vertex_buffer(struct ft2_source *srcdata)
 
 skip_word_wrap:;
 	fill_vertex_buffer(srcdata);
+	set_up_shadow_vertex_buffer(srcdata);
+	gs_vertexbuffer_flush(srcdata->vbuf);
 	obs_leave_graphics();
+}
+
+/* Outlines and drop shadows use the same glyphs in black. Keeping them in a
+ * buffer of their own means neither buffer has to be uploaded again until the
+ * text changes, instead of on every draw. */
+void set_up_shadow_vertex_buffer(struct ft2_source *srcdata)
+{
+	struct gs_vb_data *vdata = gs_vertexbuffer_get_data(srcdata->vbuf);
+	if (vdata == NULL || srcdata->colorbuf == NULL)
+		return;
+
+	srcdata->shadow_vbuf = create_uv_vbuffer((uint32_t)vdata->num, true);
+	struct gs_vb_data *sdata =
+		gs_vertexbuffer_get_data(srcdata->shadow_vbuf);
+	if (sdata == NULL)
+		return;
+
+	memcpy(sdata->points, vdata->points, sizeof(struct vec3) * vdata->num);
+	memcpy(sdata->tvarray[0].array, vdata->tvarray[0].array,
+	       sizeof(struct vec2) * vdata->num);
+	memcpy(sdata->colors, srcdata->colorbuf,
+	       sizeof(uint32_t) * vdata->num);
+	gs_vertexbuffer_flush(srcdata->shadow_vbuf);
 }
 
 void fill_vertex_buffer(struct ft2_source *srcdata)

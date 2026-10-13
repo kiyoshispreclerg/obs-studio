@@ -255,6 +255,10 @@ static void ft2_source_destroy(void *data)
 		gs_vertexbuffer_destroy(srcdata->vbuf);
 		srcdata->vbuf = NULL;
 	}
+	if (srcdata->shadow_vbuf != NULL) {
+		gs_vertexbuffer_destroy(srcdata->shadow_vbuf);
+		srcdata->shadow_vbuf = NULL;
+	}
 	if (srcdata->draw_effect != NULL) {
 		gs_effect_destroy(srcdata->draw_effect);
 		srcdata->draw_effect = NULL;

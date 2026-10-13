@@ -337,6 +337,11 @@ macro(find_qt)
       Qt6
       COMPONENTS ${FIND_QT_COMPONENTS} ${FIND_QT_COMPONENTS_LINUX}
       REQUIRED)
+
+    # Newer Qt versions (6.10+) only define the private targets if they are requested explicitly
+    if("Gui" IN_LIST FIND_QT_COMPONENTS_LINUX)
+      find_package(Qt6 OPTIONAL_COMPONENTS GuiPrivate)
+    endif()
   endif()
 
   list(APPEND FIND_QT_COMPONENTS "Core")

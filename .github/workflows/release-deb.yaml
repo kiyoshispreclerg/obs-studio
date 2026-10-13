@@ -97,6 +97,8 @@ jobs:
             -DCMAKE_BUILD_TYPE=RelWithDebInfo \
             -DCEF_ROOT_DIR="$PWD/.deps/cef" \
             -DENABLE_BROWSER=ON \
+            -DCMAKE_C_FLAGS="-Wno-error=deprecated-declarations" \
+            -DCMAKE_CXX_FLAGS="-Wno-error=deprecated-declarations" \
             -DENABLE_AJA=OFF -DENABLE_WEBRTC=OFF \
             $extra
 

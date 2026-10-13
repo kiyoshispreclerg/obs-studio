@@ -893,7 +893,9 @@ static int64_t ffmpeg_mux_seek_av_buffer(void *opaque, int64_t offset,
 #define FFMPEG_MUX_WRITE_BUF_TYPE uint8_t
 #endif
 
-static int ffmpeg_mux_write_av_buffer(void *opaque, FFMPEG_MUX_WRITE_BUF_TYPE *buf, int buf_size)
+static int ffmpeg_mux_write_av_buffer(void *opaque,
+				      FFMPEG_MUX_WRITE_BUF_TYPE *buf,
+				      int buf_size)
 {
 	struct ffmpeg_mux *ffm = opaque;
 

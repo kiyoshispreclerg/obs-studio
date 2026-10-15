@@ -2785,17 +2785,18 @@ void OBSBasicPreview::UpdateXScrollBar(float cx)
 
 	OBSBasic *main = OBSBasic::Get();
 
-	if (!main->ui->previewXScrollBar->isVisible())
-		return;
+	/* The scrollbar only exists while the zoomed preview is cut off. */
+	QScrollBar *scrollBar = main->ui->previewXScrollBar;
+	scrollBar->setVisible(cx >= 1.0f);
 
-	main->ui->previewXScrollBar->setRange(int(-cx), int(cx));
+	scrollBar->setRange(int(-cx), int(cx));
 
 	QSize targetSize = GetPixelSize(this);
-	main->ui->previewXScrollBar->setPageStep(targetSize.width() /
-						 std::min(scalingAmount, 1.0f));
+	scrollBar->setPageStep(targetSize.width() /
+			       std::min(scalingAmount, 1.0f));
 
-	QSignalBlocker sig(main->ui->previewXScrollBar);
-	main->ui->previewXScrollBar->setValue(int(-scrollingOffset.x));
+	QSignalBlocker sig(scrollBar);
+	scrollBar->setValue(int(-scrollingOffset.x));
 }
 
 void OBSBasicPreview::UpdateYScrollBar(float cy)
@@ -2805,15 +2806,16 @@ void OBSBasicPreview::UpdateYScrollBar(float cy)
 
 	OBSBasic *main = OBSBasic::Get();
 
-	if (!main->ui->previewYScrollBar->isVisible())
-		return;
+	/* The scrollbar only exists while the zoomed preview is cut off. */
+	QScrollBar *scrollBar = main->ui->previewYScrollBar;
+	scrollBar->setVisible(cy >= 1.0f);
 
-	main->ui->previewYScrollBar->setRange(int(-cy), int(cy));
+	scrollBar->setRange(int(-cy), int(cy));
 
 	QSize targetSize = GetPixelSize(this);
-	main->ui->previewYScrollBar->setPageStep(targetSize.height() /
-						 std::min(scalingAmount, 1.0f));
+	scrollBar->setPageStep(targetSize.height() /
+			       std::min(scalingAmount, 1.0f));
 
-	QSignalBlocker sig(main->ui->previewYScrollBar);
-	main->ui->previewYScrollBar->setValue(int(-scrollingOffset.y));
+	QSignalBlocker sig(scrollBar);
+	scrollBar->setValue(int(-scrollingOffset.y));
 }

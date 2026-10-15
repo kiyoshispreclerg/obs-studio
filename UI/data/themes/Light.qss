@@ -1570,10 +1570,6 @@ QScrollBar::handle:disabled {
     border-radius: 0;
 }
 
-#previewXContainer {
-    border: 1px solid palette(button);
-}
-
 #previewScalingMode {
     border: 1px solid palette(button);
 }
@@ -1591,7 +1587,6 @@ QScrollBar::handle:disabled {
 }
 
 #previewXScrollBar {
-    border-left: none;
     height: 16px;
 }
 
@@ -1689,4 +1684,20 @@ SourceSelectButton:checked {
 SourceSelectButton:focus,
 SourceSelectButton:checked:focus {
     border-color: palette(text);
+}
+
+[class~="text-small"] {
+    font-size: 9pt;
+}
+
+[class~="margin-y"] {
+    margin-top: 2px;
+    margin-bottom: 6px;
+}
+
+[class~="frame-notice"] {
+    background: palette(base);
+    border: 1px solid palette(button);
+    border-radius: 4px;
+    padding: 8px 6px;
 }

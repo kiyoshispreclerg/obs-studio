@@ -11153,6 +11153,8 @@ void OBSBasic::UpdatePreviewControls()
 	if (!ui->preview->IsFixedScaling()) {
 		ui->previewXScrollBar->setRange(0, 0);
 		ui->previewYScrollBar->setRange(0, 0);
+		ui->previewXScrollBar->hide();
+		ui->previewYScrollBar->hide();
 
 		ui->actionPreviewResetZoom->setEnabled(false);
 

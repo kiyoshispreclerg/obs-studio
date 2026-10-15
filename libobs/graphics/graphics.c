@@ -1060,6 +1060,14 @@ void gs_draw_sprite(gs_texture_t *tex, uint32_t flip, uint32_t width,
 		gs_vertexbuffer_flush(graphics->subregion_buffer);
 		gs_load_vertexbuffer(graphics->subregion_buffer);
 		gs_draw(GS_TRISTRIP, 0, 0);
+	} else if ((flip & GS_FLIP_U) != 0) {
+		/* the static buffers only cover no flip and GS_FLIP_V
+		 * (linux-pipewire uses GS_FLIP_U for flipped outputs) */
+		data = gs_vertexbuffer_get_data(graphics->subregion_buffer);
+		build_sprite_norm(data, 1.0f, 1.0f, flip);
+		gs_vertexbuffer_flush(graphics->subregion_buffer);
+		gs_load_vertexbuffer(graphics->subregion_buffer);
+		gs_draw(GS_TRISTRIP, 0, 0);
 	} else {
 		gs_load_vertexbuffer(flip ? graphics->flipped_sprite_buffer
 					  : graphics->sprite_buffer);

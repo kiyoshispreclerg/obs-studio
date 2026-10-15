@@ -71,7 +71,6 @@ ThumbnailManager::ThumbnailManager(QObject *parent) : QObject(parent)
 {
 	elapsedTimer.start();
 	connect(&updateTimer, &QTimer::timeout, this, &ThumbnailManager::updateTick);
-	updateTickInterval(kMinimumThumbnailUpdateInterval);
 
 	signalHandlers.emplace_back(obs_get_signal_handler(), "source_destroy", &ThumbnailManager::obsSourceRemoved,
 				    this);
@@ -116,6 +115,9 @@ void ThumbnailManager::createThumbnailItem(const std::string &uuid)
 		updateTickInterval(kMinimumThumbnailUpdateInterval);
 	} else {
 		updateQueue.emplace_back(uuid);
+		if (!updateTimer.isActive()) {
+			updateTickInterval(kThumbnailUpdateInterval);
+		}
 	}
 
 	connect(item, &ThumbnailItem::noViewsRemaining, this, [this, uuid]() { deleteItemById(uuid); });
@@ -145,7 +147,7 @@ void ThumbnailManager::obsSourceRemoved(void *data, calldata_t *params)
 
 void ThumbnailManager::updateTickInterval(int newInterval)
 {
-	if (updateTimer.interval() != newInterval) {
+	if (!updateTimer.isActive() || updateTimer.interval() != newInterval) {
 		elapsedTimer.restart();
 		updateTimer.start(newInterval);
 	}
@@ -154,6 +156,9 @@ void ThumbnailManager::updateTickInterval(int newInterval)
 void ThumbnailManager::updateNextItem(size_t cycleDepth)
 {
 	if (thumbnailList.empty()) {
+		/* Nothing is showing thumbnails, so don't keep waking up the
+		 * UI thread; createThumbnailItem() starts the timer again. */
+		updateTimer.stop();
 		return;
 	}
 

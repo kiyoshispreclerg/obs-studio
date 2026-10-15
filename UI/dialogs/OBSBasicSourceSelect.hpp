@@ -38,7 +38,8 @@ public:
 
 	OBSSource newSource;
 
-	static void sourcePaste(SourceCopyInfo &info, bool duplicate, OBSScene scene = nullptr);
+	static void sourcePaste(SourceCopyInfo &info, bool duplicate,
+				OBSScene scene = nullptr);
 
 protected:
 	void showEvent(QShowEvent *event) override;
@@ -89,7 +90,8 @@ public slots:
 	void handleSourceCreated();
 	void handleSourceRemoved(QString uuid);
 
-	void sourceTypeSelected(QListWidgetItem *current, QListWidgetItem *previous);
+	void sourceTypeSelected(QListWidgetItem *current,
+				QListWidgetItem *previous);
 
 	void sourceButtonToggled(QAbstractButton *button, bool checked);
 	void sourceDropped(QString uuid);

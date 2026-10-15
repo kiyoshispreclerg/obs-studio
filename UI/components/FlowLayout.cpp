@@ -18,7 +18,9 @@ FlowLayout::FlowLayout(QWidget *parent, int margin, int hSpacing, int vSpacing)
 	setContentsMargins(margin, margin, margin, margin);
 }
 
-FlowLayout::FlowLayout(int margin, int hSpacing, int vSpacing) : m_hSpace(hSpacing), m_vSpace(vSpacing)
+FlowLayout::FlowLayout(int margin, int hSpacing, int vSpacing)
+	: m_hSpace(hSpacing),
+	  m_vSpace(vSpacing)
 {
 	setContentsMargins(margin, margin, margin, margin);
 }
@@ -107,7 +109,8 @@ QSize FlowLayout::minimumSize() const
 	}
 
 	const QMargins margins = contentsMargins();
-	size += QSize(margins.left() + margins.right(), margins.top() + margins.bottom());
+	size += QSize(margins.left() + margins.right(),
+		      margins.top() + margins.bottom());
 	return size;
 }
 
@@ -128,14 +131,16 @@ int FlowLayout::doLayout(const QRect &rect, bool testOnly) const
 		const QWidget *wid = item->widget();
 		int spaceX = horizontalSpacing();
 		if (spaceX == -1) {
-			spaceX = wid->style()->layoutSpacing(QSizePolicy::PushButton, QSizePolicy::PushButton,
-							     Qt::Horizontal);
+			spaceX = wid->style()->layoutSpacing(
+				QSizePolicy::PushButton,
+				QSizePolicy::PushButton, Qt::Horizontal);
 		}
 
 		int spaceY = verticalSpacing();
 		if (spaceY == -1) {
-			spaceY = wid->style()->layoutSpacing(QSizePolicy::PushButton, QSizePolicy::PushButton,
-							     Qt::Vertical);
+			spaceY = wid->style()->layoutSpacing(
+				QSizePolicy::PushButton,
+				QSizePolicy::PushButton, Qt::Vertical);
 		}
 
 		int nextX = x + item->sizeHint().width() + spaceX;
@@ -147,7 +152,8 @@ int FlowLayout::doLayout(const QRect &rect, bool testOnly) const
 		}
 
 		if (!testOnly) {
-			item->setGeometry(QRect(QPoint(x, y), item->sizeHint()));
+			item->setGeometry(
+				QRect(QPoint(x, y), item->sizeHint()));
 		}
 
 		x = nextX;

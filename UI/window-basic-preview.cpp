@@ -2114,30 +2114,30 @@ bool OBSBasicPreview::DrawSelectedItem(obs_scene_t *, obs_sceneitem_t *item,
 	obs_sceneitem_get_crop(item, &crop);
 
 	if (info.bounds_type == OBS_BOUNDS_NONE && crop_enabled(&crop)) {
-#define DRAW_SIDE(side, x1, y1, x2, y2)                                     \
-	if (hovered && !selected) {                                         \
-		gs_eparam_t *colParam = gs_effect_get_param_by_name(        \
-			prev->solidEffect, "color");                        \
-		gs_effect_set_vec4(colParam, &blue);                        \
-		while (gs_effect_loop(prev->solidEffect, "Solid")) {        \
-			DrawLine(x1, y1, x2, y2,                            \
-				 HANDLE_RADIUS *pixelRatio / 2, boxScale);  \
-		}                                                           \
-	} else if (crop.side > 0) {                                         \
-		gs_eparam_t *colParam = gs_effect_get_param_by_name(        \
-			prev->stripedLineEffect, "color");                  \
-		gs_effect_set_vec4(colParam, &green);                       \
-		prev->DrawStripedLine(x1, y1, x2, y2,                       \
-				      HANDLE_RADIUS *pixelRatio / 2,        \
-				      boxScale);                            \
-	} else {                                                            \
-		gs_eparam_t *colParam = gs_effect_get_param_by_name(        \
-			prev->solidEffect, "color");                        \
-		gs_effect_set_vec4(colParam, &red);                         \
-		while (gs_effect_loop(prev->solidEffect, "Solid")) {        \
-			DrawLine(x1, y1, x2, y2,                            \
-				 HANDLE_RADIUS *pixelRatio / 2, boxScale);  \
-		}                                                           \
+#define DRAW_SIDE(side, x1, y1, x2, y2)                                    \
+	if (hovered && !selected) {                                        \
+		gs_eparam_t *colParam = gs_effect_get_param_by_name(       \
+			prev->solidEffect, "color");                       \
+		gs_effect_set_vec4(colParam, &blue);                       \
+		while (gs_effect_loop(prev->solidEffect, "Solid")) {       \
+			DrawLine(x1, y1, x2, y2,                           \
+				 HANDLE_RADIUS *pixelRatio / 2, boxScale); \
+		}                                                          \
+	} else if (crop.side > 0) {                                        \
+		gs_eparam_t *colParam = gs_effect_get_param_by_name(       \
+			prev->stripedLineEffect, "color");                 \
+		gs_effect_set_vec4(colParam, &green);                      \
+		prev->DrawStripedLine(x1, y1, x2, y2,                      \
+				      HANDLE_RADIUS *pixelRatio / 2,       \
+				      boxScale);                           \
+	} else {                                                           \
+		gs_eparam_t *colParam = gs_effect_get_param_by_name(       \
+			prev->solidEffect, "color");                       \
+		gs_effect_set_vec4(colParam, &red);                        \
+		while (gs_effect_loop(prev->solidEffect, "Solid")) {       \
+			DrawLine(x1, y1, x2, y2,                           \
+				 HANDLE_RADIUS *pixelRatio / 2, boxScale); \
+		}                                                          \
 	}
 
 		DRAW_SIDE(left, 0.0f, 0.0f, 0.0f, 1.0f);
@@ -2363,8 +2363,8 @@ void OBSBasicPreview::SetScalingAmount(float newScalingAmountVal)
 	emit scalingChanged(scalingAmount);
 
 	if (!fixedScaling) {
-		scalingLevel = std::round(log(scalingAmount) /
-					  log(ZOOM_SENSITIVITY));
+		scalingLevel =
+			std::round(log(scalingAmount) / log(ZOOM_SENSITIVITY));
 	}
 }
 

@@ -40,7 +40,9 @@ ScreenshotObj::ScreenshotObj(obs_source_t *source, const Options &options)
 	obs_add_tick_callback(renderTick, this);
 }
 
-ScreenshotObj::ScreenshotObj(obs_source_t *source) : ScreenshotObj(source, {}) {}
+ScreenshotObj::ScreenshotObj(obs_source_t *source) : ScreenshotObj(source, {})
+{
+}
 
 ScreenshotObj::~ScreenshotObj()
 {
@@ -86,7 +88,8 @@ void ScreenshotObj::renderScreenshot()
 	}
 
 #ifdef _WIN32
-	enum gs_color_space space = obs_source_get_color_space(source, 0, nullptr);
+	enum gs_color_space space =
+		obs_source_get_color_space(source, 0, nullptr);
 	if (space == GS_CS_709_EXTENDED) {
 		/* Convert for JXR */
 		space = GS_CS_709_SCRGB;
@@ -97,13 +100,16 @@ void ScreenshotObj::renderScreenshot()
 #endif
 	const enum gs_color_format format = gs_get_format_from_space(space);
 
-	outputWidth = options.size.isValid() ? options.size.width() : sourceWidth;
-	outputHeight = options.size.isValid() ? options.size.height() : sourceHeight;
+	outputWidth = options.size.isValid() ? options.size.width()
+					     : sourceWidth;
+	outputHeight = options.size.isValid() ? options.size.height()
+					      : sourceHeight;
 
 	texrender = gs_texrender_create(format, GS_ZS_NONE);
 	stagesurf = gs_stagesurface_create(outputWidth, outputHeight, format);
 
-	if (gs_texrender_begin_with_color_space(texrender, outputWidth, outputHeight, space)) {
+	if (gs_texrender_begin_with_color_space(texrender, outputWidth,
+						outputHeight, space)) {
 		vec4 zero;
 		vec4_zero(&zero);
 
@@ -113,7 +119,8 @@ void ScreenshotObj::renderScreenshot()
 		int scaledHeight{0};
 		float scale{0.0};
 
-		GetScaleAndCenterPos(sourceWidth, sourceHeight, outputWidth, outputHeight, x, y, scale);
+		GetScaleAndCenterPos(sourceWidth, sourceHeight, outputWidth,
+				     outputHeight, x, y, scale);
 
 		scaledWidth = int(scale * float(sourceWidth));
 		scaledHeight = int(scale * float(sourceHeight));
@@ -123,7 +130,8 @@ void ScreenshotObj::renderScreenshot()
 		gs_viewport_push();
 		gs_projection_push();
 
-		gs_ortho(0.0f, (float)sourceWidth, 0.0f, (float)sourceHeight, -100.0f, 100.0f);
+		gs_ortho(0.0f, (float)sourceWidth, 0.0f, (float)sourceHeight,
+			 -100.0f, 100.0f);
 		gs_set_viewport(x, y, scaledWidth, scaledHeight);
 
 		gs_blend_state_push();
@@ -158,7 +166,8 @@ void ScreenshotObj::processStage()
 		break;
 	case Stage::Output:
 		copyData();
-		QMetaObject::invokeMethod(this, &ScreenshotObj::handleSave, Qt::QueuedConnection);
+		QMetaObject::invokeMethod(this, &ScreenshotObj::handleSave,
+					  Qt::QueuedConnection);
 		obs_remove_tick_callback(renderTick, this);
 		stage_ = Stage::Finished;
 		break;
@@ -183,15 +192,20 @@ void ScreenshotObj::copyData()
 			half_bytes.reserve(outputWidth * outputHeight * 8);
 
 			for (uint32_t y = 0; y < outputHeight; ++y) {
-				const uint8_t *const line = videoData + (y * videoLinesize);
-				half_bytes.insert(half_bytes.end(), line, line + linesize);
+				const uint8_t *const line =
+					videoData + (y * videoLinesize);
+				half_bytes.insert(half_bytes.end(), line,
+						  line + linesize);
 			}
 		} else {
-			image = QImage(outputWidth, outputHeight, QImage::Format::Format_RGBX8888);
+			image = QImage(outputWidth, outputHeight,
+				       QImage::Format::Format_RGBX8888);
 
 			int linesize = image.bytesPerLine();
 			for (int y = 0; y < (int)outputHeight; ++y) {
-				memcpy(image.scanLine(y), videoData + (y * videoLinesize), linesize);
+				memcpy(image.scanLine(y),
+				       videoData + (y * videoLinesize),
+				       linesize);
 			}
 		}
 
@@ -202,7 +216,8 @@ void ScreenshotObj::copyData()
 void ScreenshotObj::saveToFile()
 {
 	if (!options.outputToFile) {
-		QMetaObject::invokeMethod(this, &ScreenshotObj::onFinished, Qt::QueuedConnection);
+		QMetaObject::invokeMethod(this, &ScreenshotObj::onFinished,
+					  Qt::QueuedConnection);
 		return;
 	}
 
@@ -211,27 +226,37 @@ void ScreenshotObj::saveToFile()
 
 	const char *mode = config_get_string(config, "Output", "Mode");
 	const char *type = config_get_string(config, "AdvOut", "RecType");
-	const char *adv_path = strcmp(type, "Standard") ? config_get_string(config, "AdvOut", "FFFilePath")
-							: config_get_string(config, "AdvOut", "RecFilePath");
-	const char *rec_path = strcmp(mode, "Advanced") ? config_get_string(config, "SimpleOutput", "FilePath")
-							: adv_path;
+	const char *adv_path =
+		strcmp(type, "Standard")
+			? config_get_string(config, "AdvOut", "FFFilePath")
+			: config_get_string(config, "AdvOut", "RecFilePath");
+	const char *rec_path =
+		strcmp(mode, "Advanced")
+			? config_get_string(config, "SimpleOutput", "FilePath")
+			: adv_path;
 
-	bool noSpace = config_get_bool(config, "SimpleOutput", "FileNameWithoutSpace");
-	const char *filenameFormat = config_get_string(config, "Output", "FilenameFormatting");
-	bool overwriteIfExists = config_get_bool(config, "Output", "OverwriteIfExists");
+	bool noSpace =
+		config_get_bool(config, "SimpleOutput", "FileNameWithoutSpace");
+	const char *filenameFormat =
+		config_get_string(config, "Output", "FilenameFormatting");
+	bool overwriteIfExists =
+		config_get_bool(config, "Output", "OverwriteIfExists");
 
 	const char *ext = half_bytes.empty() ? "png" : "jxr";
-	path = GetOutputFilename(rec_path, ext, noSpace, overwriteIfExists,
-				 GetFormatString(filenameFormat, "Screenshot", nullptr).c_str());
+	path = GetOutputFilename(
+		rec_path, ext, noSpace, overwriteIfExists,
+		GetFormatString(filenameFormat, "Screenshot", nullptr).c_str());
 
 	thread = std::thread([this] {
 		muxFile();
-		QMetaObject::invokeMethod(this, &ScreenshotObj::onFinished, Qt::QueuedConnection);
+		QMetaObject::invokeMethod(this, &ScreenshotObj::onFinished,
+					  Qt::QueuedConnection);
 	});
 }
 
 #ifdef _WIN32
-static HRESULT SaveJxrImage(LPCWSTR path, uint8_t *pixels, uint32_t cx, uint32_t cy, IWICBitmapFrameEncode *frameEncode,
+static HRESULT SaveJxrImage(LPCWSTR path, uint8_t *pixels, uint32_t cx,
+			    uint32_t cy, IWICBitmapFrameEncode *frameEncode,
 			    IPropertyBag2 *options)
 {
 	wchar_t lossless[] = L"Lossless";
@@ -266,7 +291,8 @@ static HRESULT SaveJxrImage(LPCWSTR path, uint8_t *pixels, uint32_t cx, uint32_t
 		return hr;
 	}
 
-	if (memcmp(&pixelFormat, &GUID_WICPixelFormat64bppRGBAHalf, sizeof(WICPixelFormatGUID)) != 0) {
+	if (memcmp(&pixelFormat, &GUID_WICPixelFormat64bppRGBAHalf,
+		   sizeof(WICPixelFormatGUID)) != 0) {
 		return E_FAIL;
 	}
 
@@ -286,7 +312,8 @@ static HRESULT SaveJxrImage(LPCWSTR path, uint8_t *pixels, uint32_t cx, uint32_t
 static HRESULT SaveJxr(LPCWSTR path, uint8_t *pixels, uint32_t cx, uint32_t cy)
 {
 	Microsoft::WRL::ComPtr<IWICImagingFactory> factory;
-	HRESULT hr = CoCreateInstance(CLSID_WICImagingFactory, NULL, CLSCTX_INPROC_SERVER,
+	HRESULT hr = CoCreateInstance(CLSID_WICImagingFactory, NULL,
+				      CLSCTX_INPROC_SERVER,
 				      IID_PPV_ARGS(factory.GetAddressOf()));
 	if (FAILED(hr)) {
 		return hr;
@@ -304,7 +331,8 @@ static HRESULT SaveJxr(LPCWSTR path, uint8_t *pixels, uint32_t cx, uint32_t cy)
 	}
 
 	Microsoft::WRL::ComPtr<IWICBitmapEncoder> encoder = NULL;
-	hr = factory->CreateEncoder(GUID_ContainerFormatWmp, NULL, encoder.GetAddressOf());
+	hr = factory->CreateEncoder(GUID_ContainerFormatWmp, NULL,
+				    encoder.GetAddressOf());
 	if (FAILED(hr)) {
 		return hr;
 	}
@@ -316,12 +344,14 @@ static HRESULT SaveJxr(LPCWSTR path, uint8_t *pixels, uint32_t cx, uint32_t cy)
 
 	Microsoft::WRL::ComPtr<IWICBitmapFrameEncode> frameEncode;
 	Microsoft::WRL::ComPtr<IPropertyBag2> options;
-	hr = encoder->CreateNewFrame(frameEncode.GetAddressOf(), options.GetAddressOf());
+	hr = encoder->CreateNewFrame(frameEncode.GetAddressOf(),
+				     options.GetAddressOf());
 	if (FAILED(hr)) {
 		return hr;
 	}
 
-	hr = SaveJxrImage(path, pixels, cx, cy, frameEncode.Get(), options.Get());
+	hr = SaveJxrImage(path, pixels, cx, cy, frameEncode.Get(),
+			  options.Get());
 	if (FAILED(hr)) {
 		return hr;
 	}
@@ -341,7 +371,8 @@ void ScreenshotObj::muxFile()
 		wchar_t *path_w = nullptr;
 		os_utf8_to_wcs_ptr(path.c_str(), 0, &path_w);
 		if (path_w) {
-			SaveJxr(path_w, half_bytes.data(), outputWidth, outputHeight);
+			SaveJxr(path_w, half_bytes.data(), outputWidth,
+				outputHeight);
 			bfree(path_w);
 		}
 #endif

@@ -40,7 +40,8 @@ bool updateItem(ThumbnailItem *item)
 }
 } // namespace
 
-void ThumbnailManager::ThumbnailCache::put(const std::string &key, const QPixmap &value)
+void ThumbnailManager::ThumbnailCache::put(const std::string &key,
+					   const QPixmap &value)
 {
 	auto it = cacheMap.find(key);
 	if (it != cacheMap.end()) {
@@ -56,7 +57,8 @@ void ThumbnailManager::ThumbnailCache::put(const std::string &key, const QPixmap
 	}
 }
 
-std::optional<QPixmap> ThumbnailManager::ThumbnailCache::get(const std::string &key)
+std::optional<QPixmap>
+ThumbnailManager::ThumbnailCache::get(const std::string &key)
 {
 	auto it = cacheMap.find(key);
 	if (it == cacheMap.end()) {
@@ -70,13 +72,15 @@ std::optional<QPixmap> ThumbnailManager::ThumbnailCache::get(const std::string &
 ThumbnailManager::ThumbnailManager(QObject *parent) : QObject(parent)
 {
 	elapsedTimer.start();
-	connect(&updateTimer, &QTimer::timeout, this, &ThumbnailManager::updateTick);
+	connect(&updateTimer, &QTimer::timeout, this,
+		&ThumbnailManager::updateTick);
 
-	signalHandlers.emplace_back(obs_get_signal_handler(), "source_destroy", &ThumbnailManager::obsSourceRemoved,
-				    this);
+	signalHandlers.emplace_back(obs_get_signal_handler(), "source_destroy",
+				    &ThumbnailManager::obsSourceRemoved, this);
 }
 
-ThumbnailView *ThumbnailManager::createView(QWidget *parent, obs_source_t *source)
+ThumbnailView *ThumbnailManager::createView(QWidget *parent,
+					    obs_source_t *source)
 {
 	if (!source) {
 		return new ThumbnailView(parent, nullptr);
@@ -92,15 +96,17 @@ ThumbnailView *ThumbnailManager::createView(QWidget *parent, obs_source_t *sourc
 	ThumbnailItem *item = getThumbnailItem(uuid);
 	ThumbnailView *view = item->createView(parent);
 
-	connect(view, &ThumbnailView::updateRequested, this, [this](const std::string &uuid) {
-		bool updateImmediately = true;
-		addToPriorityQueue(uuid, updateImmediately);
-	});
+	connect(view, &ThumbnailView::updateRequested, this,
+		[this](const std::string &uuid) {
+			bool updateImmediately = true;
+			addToPriorityQueue(uuid, updateImmediately);
+		});
 
 	return view;
 }
 
-std::optional<QPixmap> ThumbnailManager::getCachedPixmap(const std::string &uuid)
+std::optional<QPixmap>
+ThumbnailManager::getCachedPixmap(const std::string &uuid)
 {
 	return thumbnailCache.get(uuid);
 }
@@ -120,7 +126,8 @@ void ThumbnailManager::createThumbnailItem(const std::string &uuid)
 		}
 	}
 
-	connect(item, &ThumbnailItem::noViewsRemaining, this, [this, uuid]() { deleteItemById(uuid); });
+	connect(item, &ThumbnailItem::noViewsRemaining, this,
+		[this, uuid]() { deleteItemById(uuid); });
 }
 
 ThumbnailItem *ThumbnailManager::getThumbnailItem(const std::string &uuid)
@@ -134,7 +141,8 @@ ThumbnailItem *ThumbnailManager::getThumbnailItem(const std::string &uuid)
 
 void ThumbnailManager::obsSourceRemoved(void *data, calldata_t *params)
 {
-	auto *source = static_cast<obs_source_t *>(calldata_ptr(params, "source"));
+	auto *source =
+		static_cast<obs_source_t *>(calldata_ptr(params, "source"));
 	const char *uuidPointer = obs_source_get_uuid(source);
 
 	if (!uuidPointer) {
@@ -142,7 +150,9 @@ void ThumbnailManager::obsSourceRemoved(void *data, calldata_t *params)
 	}
 
 	auto *manager = static_cast<ThumbnailManager *>(data);
-	QMetaObject::invokeMethod(manager, "deleteItemById", Qt::QueuedConnection, Q_ARG(std::string, uuidPointer));
+	QMetaObject::invokeMethod(manager, "deleteItemById",
+				  Qt::QueuedConnection,
+				  Q_ARG(std::string, uuidPointer));
 }
 
 void ThumbnailManager::updateTickInterval(int newInterval)
@@ -219,7 +229,8 @@ void ThumbnailManager::removeIdFromQueues(const std::string &uuid)
 	}
 }
 
-void ThumbnailManager::addToPriorityQueue(const std::string &uuid, bool immediate)
+void ThumbnailManager::addToPriorityQueue(const std::string &uuid,
+					  bool immediate)
 {
 	// Skip if uuid is already at the front of the priority queue
 	if (!priorityQueue.empty() && priorityQueue[0] == uuid) {

@@ -45,7 +45,8 @@ QPixmap getDefaultThumbnail(obs_source_t *source)
 		QPainter painter(&defaultPixmap);
 
 		const int x = (defaultPixmap.width() - iconPixmap.width()) / 2;
-		const int y = (defaultPixmap.height() - iconPixmap.height()) / 2;
+		const int y =
+			(defaultPixmap.height() - iconPixmap.height()) / 2;
 
 		painter.drawPixmap(x, y, iconPixmap);
 
@@ -56,7 +57,9 @@ QPixmap getDefaultThumbnail(obs_source_t *source)
 }
 } // namespace
 
-ThumbnailItem::ThumbnailItem(const std::string &uuid, ThumbnailManager *manager) : QObject(manager), uuid(uuid)
+ThumbnailItem::ThumbnailItem(const std::string &uuid, ThumbnailManager *manager)
+	: QObject(manager),
+	  uuid(uuid)
 {
 	OBSSourceAutoRelease source = obs_get_source_by_uuid(uuid.c_str());
 	if (!source) {
@@ -124,13 +127,14 @@ ThumbnailView *ThumbnailItem::createView(QObject *parent)
 			decrementEnabledCount();
 		}
 	});
-	connect(view, &ThumbnailView::enabledChanged, this, [this](bool enabled) {
-		if (enabled) {
-			incrementEnabledCount();
-		} else {
-			decrementEnabledCount();
-		}
-	});
+	connect(view, &ThumbnailView::enabledChanged, this,
+		[this](bool enabled) {
+			if (enabled) {
+				incrementEnabledCount();
+			} else {
+				decrementEnabledCount();
+			}
+		});
 
 	return view;
 }
@@ -192,7 +196,8 @@ bool ThumbnailItem::update()
 
 		auto *obj = new ScreenshotObj(source, options);
 
-		connect(obj, &ScreenshotObj::imageReady, this, &ThumbnailItem::updatePixmapFromImage);
+		connect(obj, &ScreenshotObj::imageReady, this,
+			&ThumbnailItem::updatePixmapFromImage);
 	}
 
 	return true;

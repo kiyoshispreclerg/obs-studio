@@ -28,7 +28,9 @@
 #include <QPainter>
 #include <QStyleOptionButton>
 
-SourceSelectButton::SourceSelectButton(OBSWeakSource weak, QWidget *parent) : QAbstractButton(parent), weakSource(weak)
+SourceSelectButton::SourceSelectButton(OBSWeakSource weak, QWidget *parent)
+	: QAbstractButton(parent),
+	  weakSource(weak)
 {
 	OBSSource source = OBSGetStrongRef(weak);
 	if (!source) {
@@ -61,7 +63,8 @@ SourceSelectButton::SourceSelectButton(OBSWeakSource weak, QWidget *parent) : QA
 	image->setAlignment(Qt::AlignCenter);
 
 	thumbnail = App()->thumbnails()->createView(this, source);
-	connect(thumbnail, &ThumbnailView::updated, this, &SourceSelectButton::updatePixmap);
+	connect(thumbnail, &ThumbnailView::updated, this,
+		&SourceSelectButton::updatePixmap);
 	updatePixmap(thumbnail->getPixmap());
 
 	layout->addWidget(image);
@@ -70,12 +73,17 @@ SourceSelectButton::SourceSelectButton(OBSWeakSource weak, QWidget *parent) : QA
 	setFocusPolicy(Qt::StrongFocus);
 
 	signalHandlers.reserve(2);
-	signalHandlers.emplace_back(obs_source_get_signal_handler(source), "destroy",
-				    &SourceSelectButton::obsSourceRemoved, this);
-	signalHandlers.emplace_back(obs_source_get_signal_handler(source), "rename",
-				    &SourceSelectButton::obsSourceRenamed, this);
+	signalHandlers.emplace_back(obs_source_get_signal_handler(source),
+				    "destroy",
+				    &SourceSelectButton::obsSourceRemoved,
+				    this);
+	signalHandlers.emplace_back(obs_source_get_signal_handler(source),
+				    "rename",
+				    &SourceSelectButton::obsSourceRenamed,
+				    this);
 
-	connect(this, &QAbstractButton::pressed, this, &SourceSelectButton::buttonPressed);
+	connect(this, &QAbstractButton::pressed, this,
+		&SourceSelectButton::buttonPressed);
 }
 
 SourceSelectButton::~SourceSelectButton() {}
@@ -108,7 +116,8 @@ void SourceSelectButton::resizeEvent(QResizeEvent *)
 	QStyleOptionButton option;
 	option.initFrom(this);
 
-	QRect contentRect = style()->subElementRect(QStyle::SE_PushButtonContents, &option, this);
+	QRect contentRect = style()->subElementRect(
+		QStyle::SE_PushButtonContents, &option, this);
 	if (!contentRect.isValid()) {
 		contentRect = rect();
 	}
@@ -146,18 +155,22 @@ void SourceSelectButton::buttonPressed()
 
 void SourceSelectButton::obsSourceRemoved(void *data, calldata_t *)
 {
-	QMetaObject::invokeMethod(static_cast<SourceSelectButton *>(data), &SourceSelectButton::handleSourceRemoved);
+	QMetaObject::invokeMethod(static_cast<SourceSelectButton *>(data),
+				  &SourceSelectButton::handleSourceRemoved);
 }
 
 void SourceSelectButton::obsSourceRenamed(void *data, calldata_t *params)
 {
-	const char *newNamePtr = static_cast<const char *>(calldata_string(params, "new_name"));
+	const char *newNamePtr =
+		static_cast<const char *>(calldata_string(params, "new_name"));
 	if (!newNamePtr) {
 		return;
 	}
 
-	QMetaObject::invokeMethod(static_cast<SourceSelectButton *>(data), "handleSourceRenamed", Qt::QueuedConnection,
-				  Q_ARG(QString, QString::fromUtf8(newNamePtr)));
+	QMetaObject::invokeMethod(static_cast<SourceSelectButton *>(data),
+				  "handleSourceRenamed", Qt::QueuedConnection,
+				  Q_ARG(QString,
+					QString::fromUtf8(newNamePtr)));
 }
 
 void SourceSelectButton::handleSourceRemoved()
@@ -176,7 +189,8 @@ void SourceSelectButton::mouseMoveEvent(QMouseEvent *event)
 		return;
 	}
 
-	if ((event->pos() - dragStartPosition).manhattanLength() < QApplication::startDragDistance() * 3) {
+	if ((event->pos() - dragStartPosition).manhattanLength() <
+	    QApplication::startDragDistance() * 3) {
 		return;
 	}
 
@@ -216,7 +230,8 @@ void SourceSelectButton::updateThumbnail()
 void SourceSelectButton::updatePixmap(QPixmap pixmap)
 {
 	if (!pixmap.isNull()) {
-		image->setPixmap(
-			pixmap.scaled(image->width(), image->height(), Qt::KeepAspectRatio, Qt::SmoothTransformation));
+		image->setPixmap(pixmap.scaled(image->width(), image->height(),
+					       Qt::KeepAspectRatio,
+					       Qt::SmoothTransformation));
 	}
 }

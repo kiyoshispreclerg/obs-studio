@@ -40,7 +40,8 @@ void FlowFrame::keyPressEvent(QKeyEvent *event)
 		}
 
 		auto focusProxy = layout->itemAt(i)->widget()->focusProxy();
-		if (layout->itemAt(i)->widget() == focused || focusProxy == focused) {
+		if (layout->itemAt(i)->widget() == focused ||
+		    focusProxy == focused) {
 			if (focusProxy == focused) {
 				focused = layout->itemAt(i)->widget();
 			}
@@ -78,29 +79,41 @@ void FlowFrame::keyPressEvent(QKeyEvent *event)
 			switch (event->key()) {
 			case Qt::Key_Right:
 				if (rect.left() > focusedRect.right()) {
-					distance = (rect.left() - focusedRect.right()) +
-						   qAbs(rect.center().y() - focusedRect.center().y());
+					distance =
+						(rect.left() -
+						 focusedRect.right()) +
+						qAbs(rect.center().y() -
+						     focusedRect.center().y());
 					isCandidate = true;
 				}
 				break;
 			case Qt::Key_Left:
 				if (rect.right() < focusedRect.left()) {
-					distance = (focusedRect.left() - rect.right()) +
-						   qAbs(rect.center().y() - focusedRect.center().y());
+					distance =
+						(focusedRect.left() -
+						 rect.right()) +
+						qAbs(rect.center().y() -
+						     focusedRect.center().y());
 					isCandidate = true;
 				}
 				break;
 			case Qt::Key_Down:
 				if (rect.top() > focusedRect.bottom()) {
-					distance = (rect.top() - focusedRect.bottom()) +
-						   qAbs(rect.center().x() - focusedRect.center().x());
+					distance =
+						(rect.top() -
+						 focusedRect.bottom()) +
+						qAbs(rect.center().x() -
+						     focusedRect.center().x());
 					isCandidate = true;
 				}
 				break;
 			case Qt::Key_Up:
 				if (rect.bottom() < focusedRect.top()) {
-					distance = (focusedRect.top() - rect.bottom()) +
-						   qAbs(rect.center().x() - focusedRect.center().x());
+					distance =
+						(focusedRect.top() -
+						 rect.bottom()) +
+						qAbs(rect.center().x() -
+						     focusedRect.center().x());
 					isCandidate = true;
 				}
 				break;
@@ -123,9 +136,11 @@ void FlowFrame::keyPressEvent(QKeyEvent *event)
 
 		QWidget *scrollParent = nextFocus->parentWidget();
 		while (scrollParent) {
-			QScrollArea *scrollArea = qobject_cast<QScrollArea *>(scrollParent);
+			QScrollArea *scrollArea =
+				qobject_cast<QScrollArea *>(scrollParent);
 			if (scrollArea) {
-				scrollArea->ensureWidgetVisible(nextFocus, 20, 20);
+				scrollArea->ensureWidgetVisible(nextFocus, 20,
+								20);
 				break;
 			}
 			scrollParent = scrollParent->parentWidget();

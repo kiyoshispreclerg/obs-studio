@@ -1,6 +1,8 @@
 target_sources(
   obs-studio
   PRIVATE # cmake-format: sortable
+          dialogs/OBSBasicSourceSelect.cpp
+          dialogs/OBSBasicSourceSelect.hpp
           window-basic-about.cpp
           window-basic-about.hpp
           window-basic-adv-audio.cpp
@@ -31,8 +33,6 @@ target_sources(
           window-basic-settings-stream.cpp
           window-basic-settings.cpp
           window-basic-settings.hpp
-          dialogs/OBSBasicSourceSelect.cpp
-          dialogs/OBSBasicSourceSelect.hpp
           window-basic-stats.cpp
           window-basic-stats.hpp
           window-basic-status-bar.cpp

@@ -1026,8 +1026,7 @@ static inline void build_sprite_rect(struct gs_vb_data *data, gs_texture_t *tex,
 	build_sprite(data, fcx, fcy, start_u, end_u, start_v, end_v);
 }
 
-void gs_draw_quadf(gs_texture_t *tex, uint32_t flip, float width,
-		   float height)
+void gs_draw_quadf(gs_texture_t *tex, uint32_t flip, float width, float height)
 {
 	graphics_t *graphics = thread_graphics;
 	float fcx, fcy;

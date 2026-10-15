@@ -35,6 +35,12 @@ target_sources(
           audio-encoders.cpp
           audio-encoders.hpp
           balance-slider.hpp
+          components/FlowFrame.cpp
+          components/FlowFrame.hpp
+          components/FlowLayout.cpp
+          components/FlowLayout.hpp
+          components/SourceSelectButton.cpp
+          components/SourceSelectButton.hpp
           context-bar-controls.cpp
           context-bar-controls.hpp
           focus-list.cpp
@@ -62,21 +68,6 @@ target_sources(
           remote-text.hpp
           scene-tree.cpp
           scene-tree.hpp
-          components/FlowFrame.cpp
-          components/FlowFrame.hpp
-          components/FlowLayout.cpp
-          components/FlowLayout.hpp
-          components/SourceSelectButton.cpp
-          components/SourceSelectButton.hpp
-          utility/ResizeSignaler.hpp
-          utility/ScreenshotObj.cpp
-          utility/ScreenshotObj.hpp
-          utility/ThumbnailItem.cpp
-          utility/ThumbnailItem.hpp
-          utility/ThumbnailManager.cpp
-          utility/ThumbnailManager.hpp
-          utility/ThumbnailView.cpp
-          utility/ThumbnailView.hpp
           slider-absoluteset-style.cpp
           slider-absoluteset-style.hpp
           source-label.cpp
@@ -87,6 +78,15 @@ target_sources(
           undo-stack-obs.hpp
           url-push-button.cpp
           url-push-button.hpp
+          utility/ResizeSignaler.hpp
+          utility/ScreenshotObj.cpp
+          utility/ScreenshotObj.hpp
+          utility/ThumbnailItem.cpp
+          utility/ThumbnailItem.hpp
+          utility/ThumbnailManager.cpp
+          utility/ThumbnailManager.hpp
+          utility/ThumbnailView.cpp
+          utility/ThumbnailView.hpp
           visibility-item-widget.cpp
           visibility-item-widget.hpp
           volume-control.cpp

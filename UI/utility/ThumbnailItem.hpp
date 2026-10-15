@@ -52,7 +52,8 @@ public:
 	[[nodiscard]] bool isDefaultPixmap() const { return isDefaultPixmap_; }
 	[[nodiscard]] bool isValid() const
 	{
-		return isVideoSource && weakSource && !obs_weak_source_expired(weakSource);
+		return isVideoSource && weakSource &&
+		       !obs_weak_source_expired(weakSource);
 	}
 	[[nodiscard]] const std::string &getUuid() const { return uuid; }
 

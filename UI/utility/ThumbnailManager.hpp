@@ -47,7 +47,8 @@ class ThumbnailManager : public QObject {
 		using CacheEntry = std::pair<std::string, QPixmap>;
 
 		std::list<CacheEntry> cacheList;
-		std::unordered_map<std::string, std::list<CacheEntry>::iterator> cacheMap;
+		std::unordered_map<std::string, std::list<CacheEntry>::iterator>
+			cacheMap;
 
 		explicit ThumbnailCache(size_t maxSize) : maxSize(maxSize) {}
 
@@ -84,7 +85,8 @@ private:
 
 private slots:
 	void updateTick();
-	void addToPriorityQueue(const std::string &uuid, bool immediate = false);
+	void addToPriorityQueue(const std::string &uuid,
+				bool immediate = false);
 	void addItemToCache(std::string &uuid, QPixmap &pixmap);
 	void deleteItem(ThumbnailItem *item);
 	void deleteItemById(const std::string &uuid);

@@ -13,13 +13,28 @@ About this fork
 ---------------
 
 This is a personal fork of `OBS Studio <https://github.com/obsproject/obs-studio>`_,
-based on version 30.1.2, with a few performance and bug-fix changes:
+based on version 30.1.2. It collects bug fixes and performance work, plus
+backports of features from newer upstream releases, so they keep working on
+older systems that current OBS no longer supports (such as Ubuntu 22.04).
+
+Fixes and performance:
 
 - Fix for the VRAM/X11 window leak when toggling the preview (EGL swapchain).
 - Optional per-source CPU cost profiler (``OBS_SOURCE_PROFILER=1``).
 - XSHM screen capture with GPU copy (``Copy method``: Automatic/GPU/SHM).
 - Fewer X server round trips in the Window Capture (Xcomposite) source.
+- Faster texture uploads in the OpenGL renderer.
+- Faster sprite drawing and matrix math in libobs graphics, and cheaper
+  preview primitive rendering.
+- Text (FreeType2) sources only re-upload vertex buffers when the text changes.
+- No audio wait for removed sources; Mesa's glthread is disabled on Linux.
 - Preview refresh rate setting (General > Preview).
+
+Backported from newer upstream versions:
+
+- Preview zoom controls and scrollbars.
+- New "Add source" dialog with thumbnails, replacing the dropdown menu.
+- Builds against newer toolchains: FFmpeg 7.1 and 8.0, newer GCC, Qt 6.10.
 
 CI is intentionally minimal: pushes and pull requests run the formatting
 checks (clang-format, cmake-format, Qt XML), and pushing a tag builds ``.deb`` packages for the

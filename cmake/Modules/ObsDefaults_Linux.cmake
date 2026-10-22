@@ -106,8 +106,11 @@ macro(setup_obs_project)
   endif()
 
   set(CPACK_PACKAGE_NAME "obs-studio")
-  set(CPACK_PACKAGE_VENDOR "${OBS_WEBSITE}")
-  set(CPACK_DEBIAN_PACKAGE_MAINTAINER "${OBS_COMPANY_NAME}")
+  # Fork packaging metadata: the .deb packages come from this fork, not from upstream or Debian
+  set(CPACK_PACKAGE_VENDOR "Kiyoshi Spreclerg")
+  set(CPACK_PACKAGE_CONTACT "Kiyoshi Spreclerg <kiyoshi_pip@protonmail.com>")
+  set(CPACK_DEBIAN_PACKAGE_MAINTAINER "Kiyoshi Spreclerg <kiyoshi_pip@protonmail.com>")
+  set(CPACK_DEBIAN_PACKAGE_HOMEPAGE "https://github.com/kiyoshispreclerg/obs-studio")
   set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "${OBS_COMMENTS}")
   set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_SOURCE_DIR}/UI/data/license/gplv2.txt")
   set(CPACK_PACKAGE_VERSION "${OBS_VERSION_CANONICAL}-${OBS_BUILD_NUMBER}")

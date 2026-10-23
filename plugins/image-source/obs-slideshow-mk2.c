@@ -8,6 +8,10 @@
 
 #include <inttypes.h>
 
+#if defined(__GLIBC__)
+#include <malloc.h>
+#endif
+
 #define do_log(level, format, ...)               \
 	blog(level, "[slideshow: '%s'] " format, \
 	     obs_source_get_name(ss->source), ##__VA_ARGS__)
@@ -302,6 +306,13 @@ static void decode_image(void *data)
 	}
 
 	obs_weak_source_release(weak);
+
+#if defined(__GLIBC__)
+	/* decoding a big image leaves tens of MiB of freed buffers in the
+	 * heap; give them back so RSS does not grow with each slide. this
+	 * runs on the task queue, once per decoded image */
+	malloc_trim(0);
+#endif
 }
 
 /* creates source from a file path. only used in get_new_source(). */

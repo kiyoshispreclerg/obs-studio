@@ -302,6 +302,18 @@ static void gpu_delay_filter_destroy(void *data)
 	bfree(f);
 }
 
+/* the delayed frames are only filled while rendering, so once the source is
+ * not shown anywhere they would sit in VRAM until the source shows up again,
+ * and then play back stale frames. drop them; the delay fills up again
+ * (showing nothing for the delay time) when the source is shown */
+static void gpu_delay_filter_hide(void *data)
+{
+	struct gpu_delay_filter_data *f = data;
+
+	f->interval_ns = 0;
+	free_textures(f);
+}
+
 static void gpu_delay_filter_tick(void *data, float t)
 {
 	UNUSED_PARAMETER(t);
@@ -498,6 +510,7 @@ struct obs_source_info gpu_delay_filter = {
 	.get_properties = gpu_delay_filter_properties,
 	.get_defaults = gpu_delay_filter_defaults,
 	.video_tick = gpu_delay_filter_tick,
+	.hide = gpu_delay_filter_hide,
 	.video_render = gpu_delay_filter_render,
 	.video_get_color_space = gpu_delay_filter_get_color_space,
 };

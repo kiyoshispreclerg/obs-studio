@@ -36,6 +36,7 @@ static const char *S_MODE                    = "slide_mode";
 static const char *S_MODE_AUTO               = "mode_auto";
 static const char *S_MODE_MANUAL             = "mode_manual";
 static const char *S_IMAGE_SIZE              = "image_size";
+static const char *S_UNLOAD                  = "unload_when_hidden";
 static const char *S_IMAGE_SIZE_ORIGINAL     = "original";
 static const char *S_IMAGE_SIZE_OUTPUT       = "output";
 static const char *S_IMAGE_SIZE_SLIDESHOW    = "slideshow";
@@ -62,6 +63,7 @@ static const char *TR_SLIDE                  = "slide";
 #define T_MODE_AUTO                          T_("SlideMode.Auto")
 #define T_MODE_MANUAL                        T_("SlideMode.Manual")
 #define T_IMAGE_SIZE                         T_("ImageSize")
+#define T_UNLOAD                             T_("UnloadWhenHidden")
 #define T_IMAGE_SIZE_ORIGINAL                T_("ImageSize.Original")
 #define T_IMAGE_SIZE_OUTPUT                  T_("ImageSize.Output")
 #define T_IMAGE_SIZE_SLIDESHOW               T_("ImageSize.SlideShow")
@@ -120,6 +122,10 @@ struct slideshow_data {
 	bool use_cut;
 	bool paused;
 	bool stop;
+	/* free the slides while the slide show is not shown anywhere */
+	bool unload_when_hidden;
+	bool unloaded;
+	size_t unloaded_idx;
 	/* largest size images are kept at in memory (0 = original) */
 	uint32_t max_cx;
 	uint32_t max_cy;
@@ -398,16 +404,14 @@ static struct source_data get_new_source(struct slideshow *ss,
 	return sd;
 }
 
-static void restart_slides(struct slideshow *ss)
+static void restart_slides_at(struct slideshow *ss, size_t start_idx)
 {
 	struct slideshow_data *ssd = &ss->data;
-	size_t start_idx = 0;
-
-	if (ssd->randomize && ssd->files.num > 0) {
-		start_idx = (size_t)rand() % ssd->files.num;
-	}
-
 	struct active_slides new_slides = {0};
+
+	ssd->unloaded = false;
+	if (start_idx >= ssd->files.num)
+		start_idx = 0;
 
 	if (ssd->files.num) {
 		struct source_data sd;
@@ -432,6 +436,35 @@ static void restart_slides(struct slideshow *ss)
 
 	free_active_slides(&ssd->slides);
 	ssd->slides = new_slides;
+}
+
+static void restart_slides(struct slideshow *ss)
+{
+	struct slideshow_data *ssd = &ss->data;
+	size_t start_idx = 0;
+
+	if (ssd->randomize && ssd->files.num > 0) {
+		start_idx = (size_t)rand() % ssd->files.num;
+	}
+
+	restart_slides_at(ss, start_idx);
+}
+
+/* releases every slide (and the transition's references to them), so the
+ * images leave memory until the slide show is shown again */
+static void unload_slides(struct slideshow *ss)
+{
+	struct slideshow_data *ssd = &ss->data;
+
+	if (ssd->unloaded || !ssd->files.num)
+		return;
+
+	ssd->unloaded_idx = ssd->slides.cur.slide_idx;
+	if (ss->transition)
+		obs_transition_clear(ss->transition);
+	free_active_slides(&ssd->slides);
+	memset(&ssd->slides, 0, sizeof(ssd->slides));
+	ssd->unloaded = true;
 }
 
 static void ss_update(void *data, obs_data_t *settings)
@@ -479,6 +512,7 @@ static void ss_update(void *data, obs_data_t *settings)
 	new_data.randomize = obs_data_get_bool(settings, S_RANDOMIZE);
 	new_data.loop = obs_data_get_bool(settings, S_LOOP);
 	new_data.hide = obs_data_get_bool(settings, S_HIDE);
+	new_data.unload_when_hidden = obs_data_get_bool(settings, S_UNLOAD);
 
 	if (!old_data.tr_name || strcmp(tr_name, old_data.tr_name) != 0)
 		new_tr = obs_source_create_private(tr_name, NULL, NULL);
@@ -617,6 +651,11 @@ static void ss_update(void *data, obs_data_t *settings)
 		obs_source_media_started(ss->source);
 	}
 
+	/* loading a collection creates every slide show; the hidden ones
+	 * give their slides back right away */
+	if (ss->data.unload_when_hidden && !obs_source_showing(ss->source))
+		unload_slides(ss);
+
 	obs_data_array_release(array);
 }
 
@@ -672,7 +711,8 @@ static void ss_next_slide(void *data)
 	struct active_slides *slides = &ssd->slides;
 	struct source_data sd;
 
-	if (!ssd->files.num || obs_transition_get_time(ss->transition) < 1.0f)
+	if (!ssd->files.num || ssd->unloaded ||
+	    obs_transition_get_time(ss->transition) < 1.0f)
 		return;
 
 	struct source_data *last = deque_data(
@@ -701,7 +741,8 @@ static void ss_previous_slide(void *data)
 	struct active_slides *slides = &ssd->slides;
 	struct source_data sd;
 
-	if (!ssd->files.num || obs_transition_get_time(ss->transition) < 1.0f)
+	if (!ssd->files.num || ssd->unloaded ||
+	    obs_transition_get_time(ss->transition) < 1.0f)
 		return;
 
 	struct source_data *first = deque_data(&slides->prev, 0);
@@ -878,7 +919,7 @@ static void ss_video_tick(void *data, float seconds)
 	struct slideshow *ss = data;
 	struct slideshow_data *ssd = &ss->data;
 
-	if (!ss->transition || !ssd->slide_time)
+	if (!ss->transition || !ssd->slide_time || ssd->unloaded)
 		return;
 
 	if (ssd->restart_on_activate && ssd->use_cut) {
@@ -1071,6 +1112,8 @@ static obs_properties_t *ss_properties(void *data)
 
 	obs_properties_add_bool(ppts, S_LOOP, T_LOOP);
 	obs_properties_add_bool(ppts, S_HIDE, T_HIDE);
+	p = obs_properties_add_bool(ppts, S_UNLOAD, T_UNLOAD);
+	obs_property_set_long_description(p, T_("UnloadWhenHidden.Description"));
 	obs_properties_add_bool(ppts, S_RANDOMIZE, T_RANDOMIZE);
 
 	p = obs_properties_add_list(ppts, S_CUSTOM_SIZE, T_CUSTOM_SIZE,
@@ -1125,6 +1168,33 @@ static void ss_activate(void *data)
 		ss->data.pause_on_deactivate = false;
 		set_media_state(ss, OBS_MEDIA_STATE_PLAYING);
 	}
+}
+
+static void ss_show(void *data)
+{
+	struct slideshow *ss = data;
+	struct slideshow_data *ssd = &ss->data;
+
+	if (!ssd->unloaded)
+		return;
+
+	/* the images are decoded on the task queue again; a stopped slide
+	 * show starts over anyway, the others continue where they were */
+	if (ssd->behavior == BEHAVIOR_STOP_RESTART)
+		restart_slides(ss);
+	else
+		restart_slides_at(ss, ssd->unloaded_idx);
+
+	if (ssd->files.num)
+		obs_transition_set(ss->transition, ssd->slides.cur.source);
+}
+
+static void ss_hide(void *data)
+{
+	struct slideshow *ss = data;
+
+	if (ss->data.unload_when_hidden)
+		unload_slides(ss);
 }
 
 static void ss_deactivate(void *data)
@@ -1239,6 +1309,8 @@ struct obs_source_info slideshow_info_mk2 = {
 	.update = ss_update,
 	.activate = ss_activate,
 	.deactivate = ss_deactivate,
+	.show = ss_show,
+	.hide = ss_hide,
 	.video_render = ss_video_render,
 	.video_tick = ss_video_tick,
 	.audio_render = ss_audio_render,

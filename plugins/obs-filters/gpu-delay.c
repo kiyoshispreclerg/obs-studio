@@ -2,22 +2,32 @@
 #include <util/deque.h>
 #include <util/util_uint64.h>
 
+#include <stdio.h>
 #include <string.h>
 
 #define S_DELAY_MS "delay_ms"
 #define S_BUFFER_SCALE "buffer_scale"
+#define S_BUFFER_DIVISOR "buffer_divisor"
 
 #define BUFFER_SCALE_ORIGINAL "original"
 #define BUFFER_SCALE_OUTPUT "output"
+#define BUFFER_SCALE_CUSTOM "custom"
 
 #define T_DELAY_MS obs_module_text("DelayMs")
 #define T_BUFFER_SCALE obs_module_text("GPUDelay.BufferScale")
 #define T_BUFFER_SCALE_ORIGINAL obs_module_text("GPUDelay.BufferScale.Original")
 #define T_BUFFER_SCALE_OUTPUT obs_module_text("GPUDelay.BufferScale.Output")
+#define T_BUFFER_SCALE_CUSTOM obs_module_text("GPUDelay.BufferScale.Custom")
+#define T_BUFFER_DIVISOR obs_module_text("GPUDelay.BufferResolution")
+
+/* same downscale steps as the output resolution list in Settings > Video */
+static const double divisors[] = {1.25, 4.0 / 3.0, 1.5, 1.75, 2.0,
+				  2.25, 2.5,       2.75, 3.0};
 
 enum buffer_scale {
 	SCALE_ORIGINAL,
 	SCALE_OUTPUT,
+	SCALE_CUSTOM,
 };
 
 struct frame {
@@ -32,6 +42,7 @@ struct gpu_delay_filter_data {
 	uint64_t delay_ns;
 	uint64_t interval_ns;
 	enum buffer_scale buffer_scale;
+	double buffer_divisor;
 	uint32_t cx;
 	uint32_t cy;
 	/* size the delayed frames are stored at, drawn stretched to cx/cy */
@@ -140,6 +151,9 @@ static void get_buffer_size(struct gpu_delay_filter_data *f, uint32_t cx,
 		scale = sx < sy ? sx : sy;
 		if (scale > 1.0 || scale <= 0.0)
 			scale = 1.0;
+	} else if (f->buffer_scale == SCALE_CUSTOM &&
+		   f->buffer_divisor > 1.0) {
+		scale = 1.0 / f->buffer_divisor;
 	}
 
 	*buffer_cx = (uint32_t)((double)cx * scale + 0.5);
@@ -193,8 +207,11 @@ static void gpu_delay_filter_update(void *data, obs_data_t *s)
 	const char *scale = obs_data_get_string(s, S_BUFFER_SCALE);
 	if (strcmp(scale, BUFFER_SCALE_OUTPUT) == 0)
 		f->buffer_scale = SCALE_OUTPUT;
+	else if (strcmp(scale, BUFFER_SCALE_CUSTOM) == 0)
+		f->buffer_scale = SCALE_CUSTOM;
 	else
 		f->buffer_scale = SCALE_ORIGINAL;
+	f->buffer_divisor = obs_data_get_double(s, S_BUFFER_DIVISOR);
 
 	/* full reset */
 	f->cx = 0;
@@ -203,8 +220,20 @@ static void gpu_delay_filter_update(void *data, obs_data_t *s)
 	free_textures(f);
 }
 
+static bool buffer_scale_modified(obs_properties_t *props, obs_property_t *p,
+				  obs_data_t *settings)
+{
+	const char *scale = obs_data_get_string(settings, S_BUFFER_SCALE);
+	obs_property_set_visible(obs_properties_get(props, S_BUFFER_DIVISOR),
+				 strcmp(scale, BUFFER_SCALE_CUSTOM) == 0);
+
+	UNUSED_PARAMETER(p);
+	return true;
+}
+
 static obs_properties_t *gpu_delay_filter_properties(void *data)
 {
+	struct gpu_delay_filter_data *f = data;
 	obs_properties_t *props = obs_properties_create();
 
 	obs_property_t *p = obs_properties_add_int(props, S_DELAY_MS,
@@ -218,10 +247,33 @@ static obs_properties_t *gpu_delay_filter_properties(void *data)
 				     BUFFER_SCALE_ORIGINAL);
 	obs_property_list_add_string(p, T_BUFFER_SCALE_OUTPUT,
 				     BUFFER_SCALE_OUTPUT);
+	obs_property_list_add_string(p, T_BUFFER_SCALE_CUSTOM,
+				     BUFFER_SCALE_CUSTOM);
 	obs_property_set_long_description(
 		p, obs_module_text("GPUDelay.BufferScale.Description"));
+	obs_property_set_modified_callback(p, buffer_scale_modified);
 
-	UNUSED_PARAMETER(data);
+	/* list resolutions proportional to the source when its size is known */
+	obs_source_t *target = f ? obs_filter_get_target(f->context) : NULL;
+	uint32_t cx = target ? obs_source_get_base_width(target) : 0;
+	uint32_t cy = target ? obs_source_get_base_height(target) : 0;
+
+	p = obs_properties_add_list(props, S_BUFFER_DIVISOR, T_BUFFER_DIVISOR,
+				    OBS_COMBO_TYPE_LIST,
+				    OBS_COMBO_FORMAT_FLOAT);
+	for (size_t i = 0; i < OBS_COUNTOF(divisors); i++) {
+		char name[64];
+		double percent = 100.0 / divisors[i];
+		if (cx && cy)
+			snprintf(name, sizeof(name), "%ux%u (%.1f%%)",
+				 (uint32_t)((double)cx / divisors[i] + 0.5),
+				 (uint32_t)((double)cy / divisors[i] + 0.5),
+				 percent);
+		else
+			snprintf(name, sizeof(name), "%.1f%%", percent);
+		obs_property_list_add_float(p, name, divisors[i]);
+	}
+
 	return props;
 }
 
@@ -229,6 +281,7 @@ static void gpu_delay_filter_defaults(obs_data_t *settings)
 {
 	obs_data_set_default_string(settings, S_BUFFER_SCALE,
 				    BUFFER_SCALE_ORIGINAL);
+	obs_data_set_default_double(settings, S_BUFFER_DIVISOR, 1.5);
 }
 
 static void *gpu_delay_filter_create(obs_data_t *settings,

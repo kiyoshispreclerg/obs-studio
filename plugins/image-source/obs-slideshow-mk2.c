@@ -31,6 +31,10 @@ static const char *S_BEHAVIOR_ALWAYS_PLAY    = "always_play";
 static const char *S_MODE                    = "slide_mode";
 static const char *S_MODE_AUTO               = "mode_auto";
 static const char *S_MODE_MANUAL             = "mode_manual";
+static const char *S_IMAGE_SIZE              = "image_size";
+static const char *S_IMAGE_SIZE_ORIGINAL     = "original";
+static const char *S_IMAGE_SIZE_OUTPUT       = "output";
+static const char *S_IMAGE_SIZE_SLIDESHOW    = "slideshow";
 
 static const char *TR_CUT                    = "cut";
 static const char *TR_FADE                   = "fade";
@@ -53,6 +57,10 @@ static const char *TR_SLIDE                  = "slide";
 #define T_MODE                               T_("SlideMode")
 #define T_MODE_AUTO                          T_("SlideMode.Auto")
 #define T_MODE_MANUAL                        T_("SlideMode.Manual")
+#define T_IMAGE_SIZE                         T_("ImageSize")
+#define T_IMAGE_SIZE_ORIGINAL                T_("ImageSize.Original")
+#define T_IMAGE_SIZE_OUTPUT                  T_("ImageSize.Output")
+#define T_IMAGE_SIZE_SLIDESHOW               T_("ImageSize.SlideShow")
 
 #define T_TR_(text) obs_module_text("SlideShow.Transition." text)
 #define T_TR_CUT                             T_TR_("Cut")
@@ -108,6 +116,9 @@ struct slideshow_data {
 	bool use_cut;
 	bool paused;
 	bool stop;
+	/* largest size images are kept at in memory (0 = original) */
+	uint32_t max_cx;
+	uint32_t max_cy;
 	calldata_t cd;
 	float elapsed;
 	enum behavior behavior;
@@ -303,6 +314,8 @@ static inline obs_source_t *create_source_from_file(struct slideshow *ss,
 	obs_data_set_string(settings, "file", file);
 	obs_data_set_bool(settings, "unload", false);
 	obs_data_set_bool(settings, "is_slide", !now);
+	obs_data_set_int(settings, "max_cx", ss->data.max_cx);
+	obs_data_set_int(settings, "max_cy", ss->data.max_cy);
 	source = obs_source_create_private("image_source", NULL, settings);
 
 	obs_data_release(settings);
@@ -534,6 +547,19 @@ static void ss_update(void *data, obs_data_t *settings)
 	} else {
 		cx = 0;
 		cy = 0;
+	}
+
+	/* images are drawn fit inside the slide show, so that is the most
+	 * resolution they ever need unless the slide show is scaled up */
+	const char *image_size = obs_data_get_string(settings, S_IMAGE_SIZE);
+	if (astrcmpi(image_size, S_IMAGE_SIZE_SLIDESHOW) == 0 && valid) {
+		new_data.max_cx = cx;
+		new_data.max_cy = cy;
+	} else if (astrcmpi(image_size, S_IMAGE_SIZE_OUTPUT) == 0) {
+		struct obs_video_info ovi = {0};
+		obs_get_video_info(&ovi);
+		new_data.max_cx = ovi.output_width;
+		new_data.max_cy = ovi.output_height;
 	}
 
 	/* ------------------------------------- */
@@ -973,6 +999,8 @@ static void ss_defaults(obs_data_t *settings)
 				    S_BEHAVIOR_ALWAYS_PLAY);
 	obs_data_set_default_string(settings, S_MODE, S_MODE_AUTO);
 	obs_data_set_default_bool(settings, S_LOOP, true);
+	obs_data_set_default_string(settings, S_IMAGE_SIZE,
+				    S_IMAGE_SIZE_ORIGINAL);
 }
 
 static const char *file_filter = "Image files (*.bmp *.tga *.png *.jpeg *.jpg"
@@ -1054,6 +1082,17 @@ static obs_properties_t *ss_properties(void *data)
 				dstr_resize(&path, slash - path.array + 1);
 		}
 	}
+
+	p = obs_properties_add_list(ppts, S_IMAGE_SIZE, T_IMAGE_SIZE,
+				    OBS_COMBO_TYPE_LIST,
+				    OBS_COMBO_FORMAT_STRING);
+	obs_property_list_add_string(p, T_IMAGE_SIZE_ORIGINAL,
+				     S_IMAGE_SIZE_ORIGINAL);
+	obs_property_list_add_string(p, T_IMAGE_SIZE_SLIDESHOW,
+				     S_IMAGE_SIZE_SLIDESHOW);
+	obs_property_list_add_string(p, T_IMAGE_SIZE_OUTPUT,
+				     S_IMAGE_SIZE_OUTPUT);
+	obs_property_set_long_description(p, T_("ImageSize.Description"));
 
 	obs_properties_add_editable_list(ppts, S_FILES, T_FILES,
 					 OBS_EDITABLE_LIST_TYPE_FILES,

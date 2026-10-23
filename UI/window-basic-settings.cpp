@@ -400,6 +400,7 @@ OBSBasicSettings::OBSBasicSettings(QWidget *parent)
 	HookWidget(ui->automaticSearch,      CHECK_CHANGED,  GENERAL_CHANGED);
 	HookWidget(ui->previewSpacingHelpers,CHECK_CHANGED,  GENERAL_CHANGED);
 	HookWidget(ui->previewFPSDivisor,    COMBO_CHANGED,  GENERAL_CHANGED);
+	HookWidget(ui->previewPixelZoom,     CHECK_CHANGED,  GENERAL_CHANGED);
 	HookWidget(ui->doubleClickSwitch,    CHECK_CHANGED,  GENERAL_CHANGED);
 	HookWidget(ui->studioPortraitLayout, CHECK_CHANGED,  GENERAL_CHANGED);
 	HookWidget(ui->prevProgLabelToggle,  CHECK_CHANGED,  GENERAL_CHANGED);
@@ -1491,6 +1492,9 @@ void OBSBasicSettings::LoadGeneralSettings()
 		GetGlobalConfig(), "BasicWindow", "PreviewFPSDivisor");
 	int idx = ui->previewFPSDivisor->findData(previewFPSDivisor);
 	ui->previewFPSDivisor->setCurrentIndex(idx == -1 ? 0 : idx);
+
+	ui->previewPixelZoom->setChecked(config_get_bool(
+		GetGlobalConfig(), "BasicWindow", "PreviewPixelZoom"));
 
 	bool warnBeforeStreamStop = config_get_bool(
 		GetGlobalConfig(), "BasicWindow", "WarnBeforeStoppingStream");
@@ -3457,6 +3461,13 @@ void OBSBasicSettings::SaveGeneralSettings()
 		config_set_uint(GetGlobalConfig(), "BasicWindow",
 				"PreviewFPSDivisor", divisor);
 		obs_set_display_fps_divisor(divisor);
+	}
+
+	if (WidgetChanged(ui->previewPixelZoom)) {
+		config_set_bool(GetGlobalConfig(), "BasicWindow",
+				"PreviewPixelZoom",
+				ui->previewPixelZoom->isChecked());
+		main->previewPixelZoom = ui->previewPixelZoom->isChecked();
 	}
 
 	if (WidgetChanged(ui->doubleClickSwitch))

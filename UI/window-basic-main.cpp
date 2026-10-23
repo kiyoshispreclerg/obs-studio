@@ -2144,6 +2144,8 @@ void OBSBasic::OBSInit()
 
 	obs_set_display_fps_divisor(config_get_uint(
 		App()->GlobalConfig(), "BasicWindow", "PreviewFPSDivisor"));
+	previewPixelZoom = config_get_bool(App()->GlobalConfig(), "BasicWindow",
+					   "PreviewPixelZoom");
 
 	sceneDuplicationMode = config_get_bool(
 		App()->GlobalConfig(), "BasicWindow", "SceneDuplicationMode");
@@ -4628,6 +4630,9 @@ void OBSBasic::RenderMain(void *data, uint32_t, uint32_t)
 		obs_source_t *source = obs_scene_get_source(scene);
 		if (source)
 			obs_source_video_render(source);
+	} else if (window->previewPixelZoom && window->previewScale > 1.0f) {
+		/* zoomed in: show the canvas pixels as sharp squares */
+		obs_render_main_texture_src_color_only_nearest();
 	} else {
 		obs_render_main_texture_src_color_only();
 	}

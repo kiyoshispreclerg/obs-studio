@@ -1131,7 +1131,12 @@ static void ss_deactivate(void *data)
 {
 	struct slideshow *ss = data;
 
-	if (ss->data.behavior == BEHAVIOR_PAUSE_UNPAUSE) {
+	if (ss->data.behavior == BEHAVIOR_STOP_RESTART) {
+		/* it restarts when activated again, so there is no point in
+		 * changing (and decoding) slides nobody sees meanwhile */
+		ss->data.stop = true;
+		set_media_state(ss, OBS_MEDIA_STATE_STOPPED);
+	} else if (ss->data.behavior == BEHAVIOR_PAUSE_UNPAUSE) {
 		ss->data.pause_on_deactivate = true;
 		set_media_state(ss, OBS_MEDIA_STATE_PAUSED);
 	}

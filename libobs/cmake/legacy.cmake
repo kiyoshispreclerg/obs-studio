@@ -106,6 +106,8 @@ target_sources(
 target_sources(
   libobs
   PRIVATE graphics/graphics.c
+          graphics/memtrack.c
+          graphics/memtrack.h
           graphics/graphics.h
           graphics/graphics-imports.c
           graphics/graphics-internal.h

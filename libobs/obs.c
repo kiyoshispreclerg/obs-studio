@@ -23,6 +23,7 @@
 #include "obs.h"
 #include "obs-internal.h"
 #include "obs-source-profiler.h"
+#include "graphics/memtrack.h"
 
 struct obs_core *obs = NULL;
 
@@ -1251,6 +1252,7 @@ static bool obs_init(const char *locale, const char *module_config_path,
 	if (!obs_init_data())
 		return false;
 	source_profiler_init();
+	gs_memtrack_init();
 	if (!obs_init_handlers())
 		return false;
 	if (!obs_init_hotkeys())
@@ -1433,6 +1435,7 @@ void obs_shutdown(void)
 
 	obs_free_data();
 	source_profiler_free();
+	gs_memtrack_free();
 	obs_free_audio();
 	obs_free_video();
 	os_task_queue_destroy(obs->destruction_task_thread);

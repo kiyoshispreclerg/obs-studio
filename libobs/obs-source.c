@@ -31,6 +31,26 @@
 #include "obs.h"
 #include "obs-internal.h"
 #include "obs-source-profiler.h"
+#include "graphics/memtrack.h"
+
+/* tells the VRAM profiler which source owns what gets allocated meanwhile */
+static inline struct gs_memtrack_owner memtrack_push(obs_source_t *source)
+{
+	struct gs_memtrack_owner prev = {0};
+	if (gs_memtrack_enabled)
+		prev = gs_memtrack_push_owner(
+			source->context.name, source->info.id,
+			source->filter_parent
+				? source->filter_parent->context.name
+				: NULL);
+	return prev;
+}
+
+static inline void memtrack_pop(struct gs_memtrack_owner prev)
+{
+	if (gs_memtrack_enabled)
+		gs_memtrack_pop_owner(prev);
+}
 
 #define get_weak(source) ((obs_weak_source_t *)source->context.control)
 
@@ -400,9 +420,12 @@ obs_source_create_internal(const char *id, const char *name, const char *uuid,
 
 	/* allow the source to be created even if creation fails so that the
 	 * user's data doesn't become lost */
-	if (info && info->create)
+	if (info && info->create) {
+		struct gs_memtrack_owner mt = memtrack_push(source);
 		source->context.data =
 			info->create(source->context.settings, source);
+		memtrack_pop(mt);
+	}
 	if ((!info || info->create) && !source->context.data)
 		blog(LOG_ERROR, "Failed to create source '%s'!", name);
 
@@ -979,8 +1002,10 @@ static void obs_source_deferred_update(obs_source_t *source)
 {
 	if (source->context.data && source->info.update) {
 		long count = os_atomic_load_long(&source->defer_update_count);
+		struct gs_memtrack_owner mt = memtrack_push(source);
 		source->info.update(source->context.data,
 				    source->context.settings);
+		memtrack_pop(mt);
 		os_atomic_compare_swap_long(&source->defer_update_count, count,
 					    0);
 		obs_source_dosignal(source, "source_update", "update");
@@ -999,8 +1024,10 @@ void obs_source_update(obs_source_t *source, obs_data_t *settings)
 	if (source->info.output_flags & OBS_SOURCE_VIDEO) {
 		os_atomic_inc_long(&source->defer_update_count);
 	} else if (source->context.data && source->info.update) {
+		struct gs_memtrack_owner mt = memtrack_push(source);
 		source->info.update(source->context.data,
 				    source->context.settings);
+		memtrack_pop(mt);
 		obs_source_dosignal(source, "source_update", "update");
 	}
 }
@@ -1306,6 +1333,8 @@ void obs_source_video_tick(obs_source_t *source, float seconds)
 	if (!obs_source_valid(source, "obs_source_video_tick"))
 		return;
 
+	struct gs_memtrack_owner mt = memtrack_push(source);
+
 	if (source->info.type == OBS_SOURCE_TYPE_TRANSITION)
 		obs_transition_tick(source, seconds);
 
@@ -1375,6 +1404,8 @@ void obs_source_video_tick(obs_source_t *source, float seconds)
 
 	source->async_rendered = false;
 	source->deinterlace_rendered = false;
+
+	memtrack_pop(mt);
 }
 
 /* unless the value is 3+ hours worth of frames, this won't overflow */
@@ -3036,8 +3067,11 @@ static inline void render_video_impl(obs_source_t *source)
 
 static inline void render_video(obs_source_t *source)
 {
+	struct gs_memtrack_owner mt = memtrack_push(source);
+
 	if (!obs_source_profiler_enabled) {
 		render_video_impl(source);
+		memtrack_pop(mt);
 		return;
 	}
 
@@ -3046,6 +3080,7 @@ static inline void render_video(obs_source_t *source)
 	source_profiler_render_begin(&frame);
 	render_video_impl(source);
 	source_profiler_render_end(source, &frame);
+	memtrack_pop(mt);
 }
 
 void obs_source_video_render(obs_source_t *source)
@@ -5024,9 +5059,12 @@ void obs_source_load(obs_source_t *source)
 {
 	if (!data_valid(source, "obs_source_load"))
 		return;
-	if (source->info.load)
+	if (source->info.load) {
+		struct gs_memtrack_owner mt = memtrack_push(source);
 		source->info.load(source->context.data,
 				  source->context.settings);
+		memtrack_pop(mt);
+	}
 
 	obs_source_dosignal(source, "source_load", "load");
 }

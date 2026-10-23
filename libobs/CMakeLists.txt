@@ -212,6 +212,8 @@ target_sources(
           graphics/graphics-imports.c
           graphics/graphics-internal.h
           graphics/graphics.c
+          graphics/memtrack.c
+          graphics/memtrack.h
           graphics/graphics.h
           graphics/half.h
           graphics/image-file.c

@@ -21,6 +21,7 @@
 #include "../util/bmem.h"
 #include "../util/platform.h"
 #include "graphics-internal.h"
+#include "memtrack.h"
 #include "vec2.h"
 #include "vec3.h"
 #include "quat.h"
@@ -1391,6 +1392,16 @@ static inline bool is_pow2(uint32_t size)
 	return size >= 2 && (size & (size - 1)) == 0;
 }
 
+static uint64_t memtrack_bytes(uint32_t width, uint32_t height,
+			       uint32_t depth, enum gs_color_format format,
+			       bool mipmaps)
+{
+	uint64_t bytes = (uint64_t)width * height * depth *
+			 gs_get_format_bpp(format) / 8;
+	/* a full mip chain adds about a third */
+	return mipmaps ? bytes * 4 / 3 : bytes;
+}
+
 gs_texture_t *gs_texture_create(uint32_t width, uint32_t height,
 				enum gs_color_format color_format,
 				uint32_t levels, const uint8_t **data,
@@ -1420,9 +1431,18 @@ gs_texture_t *gs_texture_create(uint32_t width, uint32_t height,
 		levels = 1;
 	}
 
-	return graphics->exports.device_texture_create(graphics->device, width,
-						       height, color_format,
-						       levels, data, flags);
+	gs_texture_t *tex = graphics->exports.device_texture_create(
+		graphics->device, width, height, color_format, levels, data,
+		flags);
+	if (gs_memtrack_enabled && tex)
+		gs_memtrack_add(tex,
+				(flags & GS_RENDER_TARGET)
+					? GS_MEMTRACK_RENDER_TARGET
+					: GS_MEMTRACK_TEXTURE,
+				width, height, 1, color_format,
+				memtrack_bytes(width, height, 1, color_format,
+					       uses_mipmaps));
+	return tex;
 }
 
 #if defined(__linux__) || defined(__FreeBSD__) || defined(__DragonFly__)
@@ -1435,9 +1455,15 @@ gs_texture_t *gs_texture_create_from_dmabuf(
 {
 	graphics_t *graphics = thread_graphics;
 
-	return graphics->exports.device_texture_create_from_dmabuf(
+	gs_texture_t *tex = graphics->exports.device_texture_create_from_dmabuf(
 		graphics->device, width, height, drm_format, color_format,
 		n_planes, fds, strides, offsets, modifiers);
+	if (gs_memtrack_enabled && tex)
+		gs_memtrack_add(tex, GS_MEMTRACK_IMPORT, width, height, 1,
+				color_format,
+				memtrack_bytes(width, height, 1, color_format,
+					       false));
+	return tex;
 }
 
 bool gs_query_dmabuf_capabilities(enum gs_dmabuf_flags *dmabuf_flags,
@@ -1465,8 +1491,14 @@ gs_texture_t *gs_texture_create_from_pixmap(uint32_t width, uint32_t height,
 {
 	graphics_t *graphics = thread_graphics;
 
-	return graphics->exports.device_texture_create_from_pixmap(
+	gs_texture_t *tex = graphics->exports.device_texture_create_from_pixmap(
 		graphics->device, width, height, color_format, target, pixmap);
+	if (gs_memtrack_enabled && tex)
+		gs_memtrack_add(tex, GS_MEMTRACK_IMPORT, width, height, 1,
+				color_format,
+				memtrack_bytes(width, height, 1, color_format,
+					       false));
+	return tex;
 }
 
 #endif
@@ -1501,8 +1533,17 @@ gs_texture_t *gs_cubetexture_create(uint32_t size,
 		data = NULL;
 	}
 
-	return graphics->exports.device_cubetexture_create(
+	gs_texture_t *tex = graphics->exports.device_cubetexture_create(
 		graphics->device, size, color_format, levels, data, flags);
+	if (gs_memtrack_enabled && tex)
+		gs_memtrack_add(tex,
+				(flags & GS_RENDER_TARGET)
+					? GS_MEMTRACK_RENDER_TARGET
+					: GS_MEMTRACK_TEXTURE,
+				size, size, 6, color_format,
+				memtrack_bytes(size, size, 6, color_format,
+					       uses_mipmaps));
+	return tex;
 }
 
 gs_texture_t *gs_voltexture_create(uint32_t width, uint32_t height,
@@ -1516,10 +1557,17 @@ gs_texture_t *gs_voltexture_create(uint32_t width, uint32_t height,
 	if (!gs_valid("gs_voltexture_create"))
 		return NULL;
 
-	return graphics->exports.device_voltexture_create(graphics->device,
-							  width, height, depth,
-							  color_format, levels,
-							  data, flags);
+	gs_texture_t *tex = graphics->exports.device_voltexture_create(
+		graphics->device, width, height, depth, color_format, levels,
+		data, flags);
+	if (gs_memtrack_enabled && tex)
+		gs_memtrack_add(tex, GS_MEMTRACK_TEXTURE, width, height, depth,
+				color_format,
+				memtrack_bytes(width, height, depth,
+					       color_format,
+					       (flags & GS_BUILD_MIPMAPS) ||
+						       levels != 1));
+	return tex;
 }
 
 gs_zstencil_t *gs_zstencil_create(uint32_t width, uint32_t height,
@@ -1530,8 +1578,12 @@ gs_zstencil_t *gs_zstencil_create(uint32_t width, uint32_t height,
 	if (!gs_valid("gs_zstencil_create"))
 		return NULL;
 
-	return graphics->exports.device_zstencil_create(graphics->device, width,
-							height, format);
+	gs_zstencil_t *zs = graphics->exports.device_zstencil_create(
+		graphics->device, width, height, format);
+	if (gs_memtrack_enabled && zs)
+		gs_memtrack_add(zs, GS_MEMTRACK_ZSTENCIL, width, height, 1,
+				GS_UNKNOWN, (uint64_t)width * height * 4);
+	return zs;
 }
 
 gs_stagesurf_t *gs_stagesurface_create(uint32_t width, uint32_t height,
@@ -1542,8 +1594,14 @@ gs_stagesurf_t *gs_stagesurface_create(uint32_t width, uint32_t height,
 	if (!gs_valid("gs_stagesurface_create"))
 		return NULL;
 
-	return graphics->exports.device_stagesurface_create(
+	gs_stagesurf_t *surf = graphics->exports.device_stagesurface_create(
 		graphics->device, width, height, color_format);
+	if (gs_memtrack_enabled && surf)
+		gs_memtrack_add(surf, GS_MEMTRACK_STAGESURF, width, height, 1,
+				color_format,
+				memtrack_bytes(width, height, 1, color_format,
+					       false));
+	return surf;
 }
 
 gs_samplerstate_t *gs_samplerstate_create(const struct gs_sampler_info *info)
@@ -2448,6 +2506,8 @@ void gs_texture_destroy(gs_texture_t *tex)
 	if (!tex)
 		return;
 
+	if (gs_memtrack_enabled)
+		gs_memtrack_remove(tex);
 	graphics->exports.gs_texture_destroy(tex);
 }
 
@@ -2533,6 +2593,8 @@ void gs_cubetexture_destroy(gs_texture_t *cubetex)
 	if (!cubetex)
 		return;
 
+	if (gs_memtrack_enabled)
+		gs_memtrack_remove(cubetex);
 	graphics->exports.gs_cubetexture_destroy(cubetex);
 }
 
@@ -2566,6 +2628,8 @@ void gs_voltexture_destroy(gs_texture_t *voltex)
 	if (!voltex)
 		return;
 
+	if (gs_memtrack_enabled)
+		gs_memtrack_remove(voltex);
 	graphics->exports.gs_voltexture_destroy(voltex);
 }
 
@@ -2618,6 +2682,8 @@ void gs_stagesurface_destroy(gs_stagesurf_t *stagesurf)
 	if (!stagesurf)
 		return;
 
+	if (gs_memtrack_enabled)
+		gs_memtrack_remove(stagesurf);
 	graphics->exports.gs_stagesurface_destroy(stagesurf);
 }
 
@@ -2680,6 +2746,8 @@ void gs_zstencil_destroy(gs_zstencil_t *zstencil)
 	if (!zstencil)
 		return;
 
+	if (gs_memtrack_enabled)
+		gs_memtrack_remove(zstencil);
 	thread_graphics->exports.gs_zstencil_destroy(zstencil);
 }
 

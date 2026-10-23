@@ -28,6 +28,13 @@ struct image_source {
 	volatile bool file_decoded;
 	volatile bool texture_loaded;
 
+	/* optional limit for the decoded image (0 = none). the source keeps
+	 * reporting the original size and draws the smaller texture stretched */
+	uint32_t max_cx;
+	uint32_t max_cy;
+	uint32_t cx;
+	uint32_t cy;
+
 	gs_image_file4_t if4;
 };
 
@@ -45,6 +52,110 @@ static const char *image_source_get_name(void *unused)
 	return obs_module_text("ImageInput");
 }
 
+static bool is_8bit_rgba(enum gs_color_format format)
+{
+	switch (format) {
+	case GS_RGBA:
+	case GS_BGRA:
+	case GS_BGRX:
+	case GS_RGBA_UNORM:
+	case GS_BGRA_UNORM:
+	case GS_BGRX_UNORM:
+		return true;
+	default:
+		return false;
+	}
+}
+
+/* area average (box filter) downscale of 8-bit 4 channel pixels. the data
+ * is already premultiplied, so averaging the alpha channel along with the
+ * colors is correct */
+static uint8_t *downscale_rgba(const uint8_t *src, uint32_t cx, uint32_t cy,
+			       uint32_t new_cx, uint32_t new_cy)
+{
+	uint8_t *dst = bmalloc((size_t)new_cx * new_cy * 4);
+	uint32_t *x0 = bmalloc(sizeof(uint32_t) * (new_cx + 1));
+
+	for (uint32_t x = 0; x <= new_cx; x++)
+		x0[x] = (uint32_t)((uint64_t)x * cx / new_cx);
+
+	for (uint32_t y = 0; y < new_cy; y++) {
+		uint32_t y0 = (uint32_t)((uint64_t)y * cy / new_cy);
+		uint32_t y1 = (uint32_t)((uint64_t)(y + 1) * cy / new_cy);
+		if (y1 <= y0)
+			y1 = y0 + 1;
+
+		uint8_t *out = dst + (size_t)y * new_cx * 4;
+		for (uint32_t x = 0; x < new_cx; x++) {
+			uint32_t x1 = x0[x + 1] > x0[x] ? x0[x + 1]
+							: x0[x] + 1;
+			uint32_t sum[4] = {0};
+
+			for (uint32_t sy = y0; sy < y1; sy++) {
+				const uint8_t *in =
+					src + ((size_t)sy * cx + x0[x]) * 4;
+				for (uint32_t sx = x0[x]; sx < x1; sx++) {
+					sum[0] += in[0];
+					sum[1] += in[1];
+					sum[2] += in[2];
+					sum[3] += in[3];
+					in += 4;
+				}
+			}
+
+			uint32_t n = (y1 - y0) * (x1 - x0[x]);
+			for (int c = 0; c < 4; c++)
+				out[c] = (uint8_t)((sum[c] + n / 2) / n);
+			out += 4;
+		}
+	}
+
+	bfree(x0);
+	return dst;
+}
+
+static void limit_image_size(struct image_source *context)
+{
+	gs_image_file_t *image = &context->if4.image3.image2.image;
+
+	context->cx = image->cx;
+	context->cy = image->cy;
+
+	if (!image->loaded || image->is_animated_gif || !image->texture_data ||
+	    !is_8bit_rgba(image->format))
+		return;
+	if ((!context->max_cx || image->cx <= context->max_cx) &&
+	    (!context->max_cy || image->cy <= context->max_cy))
+		return;
+
+	double scale = 1.0;
+	if (context->max_cx)
+		scale = (double)context->max_cx / (double)image->cx;
+	if (context->max_cy) {
+		double sy = (double)context->max_cy / (double)image->cy;
+		if (sy < scale)
+			scale = sy;
+	}
+
+	uint32_t new_cx = (uint32_t)((double)image->cx * scale + 0.5);
+	uint32_t new_cy = (uint32_t)((double)image->cy * scale + 0.5);
+	if (!new_cx)
+		new_cx = 1;
+	if (!new_cy)
+		new_cy = 1;
+
+	uint8_t *data = downscale_rgba(image->texture_data, image->cx,
+				       image->cy, new_cx, new_cy);
+	bfree(image->texture_data);
+	image->texture_data = data;
+	image->cx = new_cx;
+	image->cy = new_cy;
+	context->if4.image3.image2.mem_usage = (uint64_t)new_cx * new_cy * 4;
+
+	debug("decoded at %ux%u instead of %ux%u", new_cx, new_cy,
+	      context->cx, context->cy);
+}
+
 void image_source_preload_image(void *data)
 {
 	struct image_source *context = data;
@@ -56,6 +167,7 @@ void image_source_preload_image(void *data)
 			    context->linear_alpha
 				    ? GS_IMAGE_ALPHA_PREMULTIPLY_SRGB
 				    : GS_IMAGE_ALPHA_PREMULTIPLY);
+	limit_image_size(context);
 	os_atomic_set_bool(&context->file_decoded, true);
 }
 
@@ -105,6 +217,10 @@ static void image_source_update(void *data, obs_data_t *settings)
 	const bool unload = obs_data_get_bool(settings, "unload");
 	const bool linear_alpha = obs_data_get_bool(settings, "linear_alpha");
 	const bool is_slide = obs_data_get_bool(settings, "is_slide");
+
+	/* not in the properties: set by the slide show */
+	context->max_cx = (uint32_t)obs_data_get_int(settings, "max_cx");
+	context->max_cy = (uint32_t)obs_data_get_int(settings, "max_cy");
 
 	if (context->file)
 		bfree(context->file);
@@ -191,13 +307,17 @@ static void image_source_destroy(void *data)
 static uint32_t image_source_getwidth(void *data)
 {
 	struct image_source *context = data;
-	return context->if4.image3.image2.image.cx;
+	return os_atomic_load_bool(&context->file_decoded)
+		       ? context->cx
+		       : context->if4.image3.image2.image.cx;
 }
 
 static uint32_t image_source_getheight(void *data)
 {
 	struct image_source *context = data;
-	return context->if4.image3.image2.image.cy;
+	return os_atomic_load_bool(&context->file_decoded)
+		       ? context->cy
+		       : context->if4.image3.image2.image.cy;
 }
 
 static void image_source_render(void *data, gs_effect_t *effect)
@@ -220,7 +340,7 @@ static void image_source_render(void *data, gs_effect_t *effect)
 	gs_eparam_t *const param = gs_effect_get_param_by_name(effect, "image");
 	gs_effect_set_texture_srgb(param, texture);
 
-	gs_draw_sprite(texture, 0, image->cx, image->cy);
+	gs_draw_sprite(texture, 0, context->cx, context->cy);
 
 	gs_blend_state_pop();
 

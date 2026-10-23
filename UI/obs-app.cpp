@@ -75,6 +75,10 @@
 #include <qpa/qplatformnativeinterface.h>
 #endif
 
+#if defined(__GLIBC__)
+#include <malloc.h>
+#endif
+
 #include <iostream>
 
 #include "ui-config.h"
@@ -2382,6 +2386,16 @@ static int run_program(fstream &logFile, int argc, char *argv[])
 	 * thread, so it only adds overhead. It can still be turned back on by
 	 * setting the variable explicitly. */
 	setenv("mesa_glthread", "false", false);
+
+#if defined(__GLIBC__)
+	/* NOTE: glibc gives each thread that allocates its own malloc arena
+	 * (up to 8 per core). OBS has dozens of threads, and the memory those
+	 * arenas keep after freeing adds up (about 15 MiB of RSS in a typical
+	 * session) without any measurable CPU benefit. Setting
+	 * MALLOC_ARENA_MAX still takes precedence. */
+	if (!getenv("MALLOC_ARENA_MAX"))
+		mallopt(M_ARENA_MAX, 2);
+#endif
 
 	/* NOTE: Users blindly set this, but this theme is incompatble with Qt6 and
 	 * crashes loading saved geometry. Just turn off this theme and let users complain OBS

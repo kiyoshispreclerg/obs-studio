@@ -2,8 +2,23 @@
 #include <util/deque.h>
 #include <util/util_uint64.h>
 
+#include <string.h>
+
 #define S_DELAY_MS "delay_ms"
+#define S_BUFFER_SCALE "buffer_scale"
+
+#define BUFFER_SCALE_ORIGINAL "original"
+#define BUFFER_SCALE_OUTPUT "output"
+
 #define T_DELAY_MS obs_module_text("DelayMs")
+#define T_BUFFER_SCALE obs_module_text("GPUDelay.BufferScale")
+#define T_BUFFER_SCALE_ORIGINAL obs_module_text("GPUDelay.BufferScale.Original")
+#define T_BUFFER_SCALE_OUTPUT obs_module_text("GPUDelay.BufferScale.Output")
+
+enum buffer_scale {
+	SCALE_ORIGINAL,
+	SCALE_OUTPUT,
+};
 
 struct frame {
 	gs_texrender_t *render;
@@ -16,8 +31,12 @@ struct gpu_delay_filter_data {
 	struct deque frames;
 	uint64_t delay_ns;
 	uint64_t interval_ns;
+	enum buffer_scale buffer_scale;
 	uint32_t cx;
 	uint32_t cy;
+	/* size the delayed frames are stored at, drawn stretched to cx/cy */
+	uint32_t buffer_cx;
+	uint32_t buffer_cy;
 	bool target_valid;
 	bool processed_frame;
 };
@@ -105,11 +124,39 @@ static inline void reset_textures(struct gpu_delay_filter_data *f)
 	check_interval(f);
 }
 
+static void get_buffer_size(struct gpu_delay_filter_data *f, uint32_t cx,
+			    uint32_t cy, uint32_t *buffer_cx,
+			    uint32_t *buffer_cy)
+{
+	double scale = 1.0;
+
+	if (f->buffer_scale == SCALE_OUTPUT) {
+		struct obs_video_info ovi = {0};
+		obs_get_video_info(&ovi);
+
+		/* fit inside the output resolution, never upscale */
+		double sx = (double)ovi.output_width / (double)cx;
+		double sy = (double)ovi.output_height / (double)cy;
+		scale = sx < sy ? sx : sy;
+		if (scale > 1.0 || scale <= 0.0)
+			scale = 1.0;
+	}
+
+	*buffer_cx = (uint32_t)((double)cx * scale + 0.5);
+	*buffer_cy = (uint32_t)((double)cy * scale + 0.5);
+	if (!*buffer_cx)
+		*buffer_cx = 1;
+	if (!*buffer_cy)
+		*buffer_cy = 1;
+}
+
 static inline bool check_size(struct gpu_delay_filter_data *f)
 {
 	obs_source_t *target = obs_filter_get_target(f->context);
 	uint32_t cx;
 	uint32_t cy;
+	uint32_t buffer_cx;
+	uint32_t buffer_cy;
 
 	f->target_valid = !!target;
 	if (!f->target_valid)
@@ -122,9 +169,14 @@ static inline bool check_size(struct gpu_delay_filter_data *f)
 	if (!f->target_valid)
 		return true;
 
-	if (cx != f->cx || cy != f->cy) {
+	get_buffer_size(f, cx, cy, &buffer_cx, &buffer_cy);
+
+	if (cx != f->cx || cy != f->cy || buffer_cx != f->buffer_cx ||
+	    buffer_cy != f->buffer_cy) {
 		f->cx = cx;
 		f->cy = cy;
+		f->buffer_cx = buffer_cx;
+		f->buffer_cy = buffer_cy;
 		reset_textures(f);
 		return true;
 	}
@@ -137,6 +189,12 @@ static void gpu_delay_filter_update(void *data, obs_data_t *s)
 	struct gpu_delay_filter_data *f = data;
 
 	f->delay_ns = (uint64_t)obs_data_get_int(s, S_DELAY_MS) * 1000000ULL;
+
+	const char *scale = obs_data_get_string(s, S_BUFFER_SCALE);
+	if (strcmp(scale, BUFFER_SCALE_OUTPUT) == 0)
+		f->buffer_scale = SCALE_OUTPUT;
+	else
+		f->buffer_scale = SCALE_ORIGINAL;
 
 	/* full reset */
 	f->cx = 0;
@@ -153,8 +211,24 @@ static obs_properties_t *gpu_delay_filter_properties(void *data)
 						   T_DELAY_MS, 0, 500, 1);
 	obs_property_int_set_suffix(p, " ms");
 
+	p = obs_properties_add_list(props, S_BUFFER_SCALE, T_BUFFER_SCALE,
+				    OBS_COMBO_TYPE_LIST,
+				    OBS_COMBO_FORMAT_STRING);
+	obs_property_list_add_string(p, T_BUFFER_SCALE_ORIGINAL,
+				     BUFFER_SCALE_ORIGINAL);
+	obs_property_list_add_string(p, T_BUFFER_SCALE_OUTPUT,
+				     BUFFER_SCALE_OUTPUT);
+	obs_property_set_long_description(
+		p, obs_module_text("GPUDelay.BufferScale.Description"));
+
 	UNUSED_PARAMETER(data);
 	return props;
+}
+
+static void gpu_delay_filter_defaults(obs_data_t *settings)
+{
+	obs_data_set_default_string(settings, S_BUFFER_SCALE,
+				    BUFFER_SCALE_ORIGINAL);
 }
 
 static void *gpu_delay_filter_create(obs_data_t *settings,
@@ -303,8 +377,10 @@ static void gpu_delay_filter_render(void *data, gs_effect_t *effect)
 	gs_blend_state_push();
 	gs_blend_function(GS_BLEND_ONE, GS_BLEND_ZERO);
 
-	if (gs_texrender_begin_with_color_space(frame.render, f->cx, f->cy,
-						space)) {
+	/* the ortho below keeps source coordinates, so rendering to a smaller
+	 * buffer just scales the source down */
+	if (gs_texrender_begin_with_color_space(frame.render, f->buffer_cx,
+						f->buffer_cy, space)) {
 		uint32_t parent_flags = obs_source_get_output_flags(target);
 		bool custom_draw = (parent_flags & OBS_SOURCE_CUSTOM_DRAW) != 0;
 		bool async = (parent_flags & OBS_SOURCE_ASYNC) != 0;
@@ -367,6 +443,7 @@ struct obs_source_info gpu_delay_filter = {
 	.destroy = gpu_delay_filter_destroy,
 	.update = gpu_delay_filter_update,
 	.get_properties = gpu_delay_filter_properties,
+	.get_defaults = gpu_delay_filter_defaults,
 	.video_tick = gpu_delay_filter_tick,
 	.video_render = gpu_delay_filter_render,
 	.video_get_color_space = gpu_delay_filter_get_color_space,

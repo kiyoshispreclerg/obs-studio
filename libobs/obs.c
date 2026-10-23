@@ -2164,7 +2164,8 @@ void obs_render_main_view(void)
 static void obs_render_main_texture_internal(enum gs_blend_type src_c,
 					     enum gs_blend_type dest_c,
 					     enum gs_blend_type src_a,
-					     enum gs_blend_type dest_a)
+					     enum gs_blend_type dest_a,
+					     bool point)
 {
 	struct obs_core_video_mix *video;
 	gs_texture_t *tex;
@@ -2200,6 +2201,8 @@ static void obs_render_main_texture_internal(enum gs_blend_type src_c,
 	effect = obs_get_base_effect(OBS_EFFECT_DEFAULT);
 	param = gs_effect_get_param_by_name(effect, "image");
 	gs_effect_set_texture_srgb(param, tex);
+	if (point)
+		gs_effect_set_next_sampler(param, obs->video.point_sampler);
 	param = gs_effect_get_param_by_name(effect, "multiplier");
 	gs_effect_set_float(param, multiplier);
 
@@ -2237,13 +2240,22 @@ uint32_t obs_get_display_fps_divisor(void)
 void obs_render_main_texture(void)
 {
 	obs_render_main_texture_internal(GS_BLEND_ONE, GS_BLEND_INVSRCALPHA,
-					 GS_BLEND_ONE, GS_BLEND_INVSRCALPHA);
+					 GS_BLEND_ONE, GS_BLEND_INVSRCALPHA,
+					 false);
 }
 
 void obs_render_main_texture_src_color_only(void)
 {
 	obs_render_main_texture_internal(GS_BLEND_ONE, GS_BLEND_ZERO,
-					 GS_BLEND_ONE, GS_BLEND_INVSRCALPHA);
+					 GS_BLEND_ONE, GS_BLEND_INVSRCALPHA,
+					 false);
+}
+
+void obs_render_main_texture_src_color_only_nearest(void)
+{
+	obs_render_main_texture_internal(GS_BLEND_ONE, GS_BLEND_ZERO,
+					 GS_BLEND_ONE, GS_BLEND_INVSRCALPHA,
+					 true);
 }
 
 gs_texture_t *obs_get_main_texture(void)

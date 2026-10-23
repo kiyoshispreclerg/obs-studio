@@ -775,6 +775,10 @@ EXPORT void obs_render_main_texture(void);
 /** Renders the last main output texture ignoring background color */
 EXPORT void obs_render_main_texture_src_color_only(void);
 
+/** Same as obs_render_main_texture_src_color_only, but samples the texture
+ * with nearest-neighbor filtering, so magnified pixels stay sharp */
+EXPORT void obs_render_main_texture_src_color_only_nearest(void);
+
 /** Returns the last main output texture.  This can return NULL if the texture
  * is unavailable. */
 EXPORT gs_texture_t *obs_get_main_texture(void);

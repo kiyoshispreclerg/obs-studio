@@ -65,9 +65,8 @@ struct gs_memtrack_owner {
 };
 
 /* returns the previous owner, pass it back to gs_memtrack_pop_owner */
-struct gs_memtrack_owner gs_memtrack_push_owner(const char *name,
-						const char *id,
-						const char *parent);
+struct gs_memtrack_owner
+gs_memtrack_push_owner(const char *name, const char *id, const char *parent);
 void gs_memtrack_pop_owner(struct gs_memtrack_owner prev);
 
 void gs_memtrack_add(const void *obj, enum gs_memtrack_kind kind,

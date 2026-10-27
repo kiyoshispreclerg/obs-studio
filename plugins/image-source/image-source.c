@@ -87,8 +87,7 @@ static uint8_t *downscale_rgba(const uint8_t *src, uint32_t cx, uint32_t cy,
 
 		uint8_t *out = dst + (size_t)y * new_cx * 4;
 		for (uint32_t x = 0; x < new_cx; x++) {
-			uint32_t x1 = x0[x + 1] > x0[x] ? x0[x + 1]
-							: x0[x] + 1;
+			uint32_t x1 = x0[x + 1] > x0[x] ? x0[x + 1] : x0[x] + 1;
 			uint32_t sum[4] = {0};
 
 			for (uint32_t sy = y0; sy < y1; sy++) {
@@ -152,8 +151,8 @@ static void limit_image_size(struct image_source *context)
 	image->cy = new_cy;
 	context->if4.image3.image2.mem_usage = (uint64_t)new_cx * new_cy * 4;
 
-	debug("decoded at %ux%u instead of %ux%u", new_cx, new_cy,
-	      context->cx, context->cy);
+	debug("decoded at %ux%u instead of %ux%u", new_cx, new_cy, context->cx,
+	      context->cy);
 }
 
 void image_source_preload_image(void *data)

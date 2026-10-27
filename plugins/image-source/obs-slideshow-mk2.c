@@ -1113,7 +1113,8 @@ static obs_properties_t *ss_properties(void *data)
 	obs_properties_add_bool(ppts, S_LOOP, T_LOOP);
 	obs_properties_add_bool(ppts, S_HIDE, T_HIDE);
 	p = obs_properties_add_bool(ppts, S_UNLOAD, T_UNLOAD);
-	obs_property_set_long_description(p, T_("UnloadWhenHidden.Description"));
+	obs_property_set_long_description(p,
+					  T_("UnloadWhenHidden.Description"));
 	obs_properties_add_bool(ppts, S_RANDOMIZE, T_RANDOMIZE);
 
 	p = obs_properties_add_list(ppts, S_CUSTOM_SIZE, T_CUSTOM_SIZE,

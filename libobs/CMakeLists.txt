@@ -81,11 +81,11 @@ target_sources(
           obs-service.c
           obs-service.h
           obs-source-deinterlace.c
+          obs-source-profiler.c
+          obs-source-profiler.h
           obs-source-transition.c
           obs-source.c
           obs-source.h
-          obs-source-profiler.c
-          obs-source-profiler.h
           obs-video-gpu-encode.c
           obs-video.c
           obs-view.c
@@ -212,8 +212,6 @@ target_sources(
           graphics/graphics-imports.c
           graphics/graphics-internal.h
           graphics/graphics.c
-          graphics/memtrack.c
-          graphics/memtrack.h
           graphics/graphics.h
           graphics/half.h
           graphics/image-file.c
@@ -228,6 +226,8 @@ target_sources(
           graphics/matrix3.h
           graphics/matrix4.c
           graphics/matrix4.h
+          graphics/memtrack.c
+          graphics/memtrack.h
           graphics/plane.c
           graphics/plane.h
           graphics/quat.c

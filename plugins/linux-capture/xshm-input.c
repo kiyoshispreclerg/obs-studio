@@ -299,7 +299,8 @@ static xcb_randr_crtc_t xshm_pick_crtc(struct xshm_data *data)
 	if (!res)
 		return XCB_NONE;
 
-	xcb_randr_crtc_t *crtcs = xcb_randr_get_screen_resources_current_crtcs(res);
+	xcb_randr_crtc_t *crtcs =
+		xcb_randr_get_screen_resources_current_crtcs(res);
 	int n = xcb_randr_get_screen_resources_current_crtcs_length(res);
 
 	for (int i = 0; i < n; i++) {
@@ -314,11 +315,15 @@ static xcb_randr_crtc_t xshm_pick_crtc(struct xshm_data *data)
 
 		if (info->width && info->height) {
 			int64_t ox = i64_min((int64_t)info->x + info->width,
-					 (int64_t)data->adj_x_org + data->adj_width) -
-				     i64_max((int64_t)info->x, (int64_t)data->adj_x_org);
+					     (int64_t)data->adj_x_org +
+						     data->adj_width) -
+				     i64_max((int64_t)info->x,
+					     (int64_t)data->adj_x_org);
 			int64_t oy = i64_min((int64_t)info->y + info->height,
-					 (int64_t)data->adj_y_org + data->adj_height) -
-				     i64_max((int64_t)info->y, (int64_t)data->adj_y_org);
+					     (int64_t)data->adj_y_org +
+						     data->adj_height) -
+				     i64_max((int64_t)info->y,
+					     (int64_t)data->adj_y_org);
 			int64_t overlap = (ox > 0 && oy > 0) ? ox * oy : 0;
 
 			if (overlap > best_overlap) {
@@ -400,10 +405,9 @@ static bool xshm_gpu_copy_init(struct xshm_data *data)
 	 * NoExpose event that nobody reads */
 	uint32_t gc_values[] = {XCB_SUBWINDOW_MODE_INCLUDE_INFERIORS, 0};
 	data->gc = xcb_generate_id(data->xcb);
-	cookie = xcb_create_gc_checked(data->xcb, data->gc, data->pixmap,
-				       XCB_GC_SUBWINDOW_MODE |
-					       XCB_GC_GRAPHICS_EXPOSURES,
-				       gc_values);
+	cookie = xcb_create_gc_checked(
+		data->xcb, data->gc, data->pixmap,
+		XCB_GC_SUBWINDOW_MODE | XCB_GC_GRAPHICS_EXPOSURES, gc_values);
 	if ((err = xcb_request_check(data->xcb, cookie))) {
 		free(err);
 		data->gc = 0;
@@ -412,8 +416,8 @@ static bool xshm_gpu_copy_init(struct xshm_data *data)
 
 	obs_enter_graphics();
 	data->texture = gs_texture_create_from_pixmap(
-		data->adj_width, data->adj_height, GS_BGRA_UNORM,
-		GL_TEXTURE_2D, (void *)(uintptr_t)data->pixmap);
+		data->adj_width, data->adj_height, GS_BGRA_UNORM, GL_TEXTURE_2D,
+		(void *)(uintptr_t)data->pixmap);
 	obs_leave_graphics();
 
 	if (!data->texture)
@@ -661,12 +665,13 @@ static obs_properties_t *xshm_properties(void *vptr)
 	obs_property_t *copy_mode = obs_properties_add_list(
 		props, "copy_mode", obs_module_text("XSHM.CopyMode"),
 		OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_INT);
-	obs_property_list_add_int(copy_mode, obs_module_text("XSHM.CopyMode.Auto"),
+	obs_property_list_add_int(copy_mode,
+				  obs_module_text("XSHM.CopyMode.Auto"),
 				  XSHM_COPY_AUTO);
-	obs_property_list_add_int(copy_mode, obs_module_text("XSHM.CopyMode.Gpu"),
-				  XSHM_COPY_GPU);
-	obs_property_list_add_int(copy_mode, obs_module_text("XSHM.CopyMode.Shm"),
-				  XSHM_COPY_SHM);
+	obs_property_list_add_int(
+		copy_mode, obs_module_text("XSHM.CopyMode.Gpu"), XSHM_COPY_GPU);
+	obs_property_list_add_int(
+		copy_mode, obs_module_text("XSHM.CopyMode.Shm"), XSHM_COPY_SHM);
 	obs_property_set_long_description(
 		copy_mode, obs_module_text("XSHM.CopyMode.Description"));
 	obs_property_t *advanced = obs_properties_add_bool(
@@ -759,8 +764,8 @@ static void xshm_prof_log(uint64_t now)
 }
 
 /* t0..t4: before request, after request, after reply, after upload, end */
-static void xshm_prof_record(uint64_t t0, uint64_t t1, uint64_t t2,
-			     uint64_t t3, uint64_t t4)
+static void xshm_prof_record(uint64_t t0, uint64_t t1, uint64_t t2, uint64_t t3,
+			     uint64_t t4)
 {
 	xshm_prof.send_ns += t1 - t0;
 	xshm_prof.wait_ns += t2 - t1;
@@ -783,9 +788,9 @@ static void xshm_tick_gpu_copy(struct xshm_data *data, bool prof)
 {
 	uint64_t t0 = prof ? os_gettime_ns() : 0;
 
-	xcb_copy_area(data->xcb, data->xcb_screen->root, data->pixmap,
-		      data->gc, data->adj_x_org, data->adj_y_org, 0, 0,
-		      data->adj_width, data->adj_height);
+	xcb_copy_area(data->xcb, data->xcb_screen->root, data->pixmap, data->gc,
+		      data->adj_x_org, data->adj_y_org, 0, 0, data->adj_width,
+		      data->adj_height);
 	xcb_flush(data->xcb);
 
 	uint64_t t1 = prof ? os_gettime_ns() : 0;

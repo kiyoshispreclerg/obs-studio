@@ -121,9 +121,8 @@ void gs_memtrack_free(void)
 	pthread_mutex_unlock(&memtrack_mutex);
 }
 
-struct gs_memtrack_owner gs_memtrack_push_owner(const char *name,
-						const char *id,
-						const char *parent)
+struct gs_memtrack_owner
+gs_memtrack_push_owner(const char *name, const char *id, const char *parent)
 {
 	struct gs_memtrack_owner prev = cur_owner;
 	/* unnamed private sources (slideshow images...) keep the outer owner */
@@ -471,8 +470,7 @@ void gs_memtrack_dump(const char *reason)
 			    f->height == e->height && f->depth == e->depth &&
 			    f->format == e->format &&
 			    strcmp(f->owner, e->owner) == 0 &&
-			    strcmp(groups.array[i].frames, frames.array) ==
-				    0) {
+			    strcmp(groups.array[i].frames, frames.array) == 0) {
 				g = &groups.array[i];
 				break;
 			}

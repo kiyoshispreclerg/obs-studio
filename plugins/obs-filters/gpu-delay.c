@@ -21,7 +21,7 @@
 #define T_BUFFER_DIVISOR obs_module_text("GPUDelay.BufferResolution")
 
 /* same downscale steps as the output resolution list in Settings > Video */
-static const double divisors[] = {1.25, 4.0 / 3.0, 1.5, 1.75, 2.0,
+static const double divisors[] = {1.25, 4.0 / 3.0, 1.5,  1.75, 2.0,
 				  2.25, 2.5,       2.75, 3.0};
 
 enum buffer_scale {
@@ -151,8 +151,7 @@ static void get_buffer_size(struct gpu_delay_filter_data *f, uint32_t cx,
 		scale = sx < sy ? sx : sy;
 		if (scale > 1.0 || scale <= 0.0)
 			scale = 1.0;
-	} else if (f->buffer_scale == SCALE_CUSTOM &&
-		   f->buffer_divisor > 1.0) {
+	} else if (f->buffer_scale == SCALE_CUSTOM && f->buffer_divisor > 1.0) {
 		scale = 1.0 / f->buffer_divisor;
 	}
 

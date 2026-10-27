@@ -483,8 +483,8 @@ bool OBSApp::InitGlobalConfigDefaults()
 				"SpacingHelpersEnabled", true);
 	config_set_default_uint(globalConfig, "BasicWindow",
 				"PreviewFPSDivisor", 1);
-	config_set_default_bool(globalConfig, "BasicWindow",
-				"PreviewPixelZoom", false);
+	config_set_default_bool(globalConfig, "BasicWindow", "PreviewPixelZoom",
+				false);
 	config_set_default_bool(globalConfig, "BasicWindow",
 				"RecordWhenStreaming", false);
 	config_set_default_bool(globalConfig, "BasicWindow",

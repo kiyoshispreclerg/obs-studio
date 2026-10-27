@@ -54,7 +54,8 @@ void draw_drop_shadow(struct ft2_source *srcdata)
 
 	gs_matrix_push();
 	gs_matrix_translate3f(4.0f, 4.0f, 0.0f);
-	draw_uv_vbuffer(srcdata->shadow_vbuf, srcdata->tex, srcdata->draw_effect,
+	draw_uv_vbuffer(srcdata->shadow_vbuf, srcdata->tex,
+			srcdata->draw_effect,
 			(uint32_t)wcslen(srcdata->text) * 6);
 	gs_matrix_identity();
 	gs_matrix_pop();
@@ -157,8 +158,7 @@ void set_up_shadow_vertex_buffer(struct ft2_source *srcdata)
 	memcpy(sdata->points, vdata->points, sizeof(struct vec3) * vdata->num);
 	memcpy(sdata->tvarray[0].array, vdata->tvarray[0].array,
 	       sizeof(struct vec2) * vdata->num);
-	memcpy(sdata->colors, srcdata->colorbuf,
-	       sizeof(uint32_t) * vdata->num);
+	memcpy(sdata->colors, srcdata->colorbuf, sizeof(uint32_t) * vdata->num);
 	gs_vertexbuffer_flush(srcdata->shadow_vbuf);
 }
 

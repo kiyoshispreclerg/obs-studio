@@ -1392,9 +1392,8 @@ static inline bool is_pow2(uint32_t size)
 	return size >= 2 && (size & (size - 1)) == 0;
 }
 
-static uint64_t memtrack_bytes(uint32_t width, uint32_t height,
-			       uint32_t depth, enum gs_color_format format,
-			       bool mipmaps)
+static uint64_t memtrack_bytes(uint32_t width, uint32_t height, uint32_t depth,
+			       enum gs_color_format format, bool mipmaps)
 {
 	uint64_t bytes = (uint64_t)width * height * depth *
 			 gs_get_format_bpp(format) / 8;
@@ -1459,10 +1458,9 @@ gs_texture_t *gs_texture_create_from_dmabuf(
 		graphics->device, width, height, drm_format, color_format,
 		n_planes, fds, strides, offsets, modifiers);
 	if (gs_memtrack_enabled && tex)
-		gs_memtrack_add(tex, GS_MEMTRACK_IMPORT, width, height, 1,
-				color_format,
-				memtrack_bytes(width, height, 1, color_format,
-					       false));
+		gs_memtrack_add(
+			tex, GS_MEMTRACK_IMPORT, width, height, 1, color_format,
+			memtrack_bytes(width, height, 1, color_format, false));
 	return tex;
 }
 
@@ -1494,10 +1492,9 @@ gs_texture_t *gs_texture_create_from_pixmap(uint32_t width, uint32_t height,
 	gs_texture_t *tex = graphics->exports.device_texture_create_from_pixmap(
 		graphics->device, width, height, color_format, target, pixmap);
 	if (gs_memtrack_enabled && tex)
-		gs_memtrack_add(tex, GS_MEMTRACK_IMPORT, width, height, 1,
-				color_format,
-				memtrack_bytes(width, height, 1, color_format,
-					       false));
+		gs_memtrack_add(
+			tex, GS_MEMTRACK_IMPORT, width, height, 1, color_format,
+			memtrack_bytes(width, height, 1, color_format, false));
 	return tex;
 }
 

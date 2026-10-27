@@ -230,27 +230,27 @@ static void log_row(const struct prof_row *row, uint64_t frames, bool by_type)
 			     "max %6.2f/%6.2f  %-10s %-26s x%zu",
 		     per_frame_ms(a->tick_ns + a->render_ns, frames),
 		     per_frame_ms(a->tick_ns, frames),
-		     per_frame_ms(a->render_ns, frames),
-		     to_ms(a->tick_max_ns), to_ms(a->render_max_ns),
-		     type_name(e->type), e->id, row->instances);
+		     per_frame_ms(a->render_ns, frames), to_ms(a->tick_max_ns),
+		     to_ms(a->render_max_ns), type_name(e->type), e->id,
+		     row->instances);
 	} else if (e->parent[0]) {
 		blog(LOG_INFO,
 		     LOG_TAG "%7.3f  (tick %6.3f + render %6.3f)  "
 			     "max %6.2f/%6.2f  %-10s %-26s \"%s\" > \"%s\"",
 		     per_frame_ms(a->tick_ns + a->render_ns, frames),
 		     per_frame_ms(a->tick_ns, frames),
-		     per_frame_ms(a->render_ns, frames),
-		     to_ms(a->tick_max_ns), to_ms(a->render_max_ns),
-		     type_name(e->type), e->id, e->parent, e->name);
+		     per_frame_ms(a->render_ns, frames), to_ms(a->tick_max_ns),
+		     to_ms(a->render_max_ns), type_name(e->type), e->id,
+		     e->parent, e->name);
 	} else {
 		blog(LOG_INFO,
 		     LOG_TAG "%7.3f  (tick %6.3f + render %6.3f)  "
 			     "max %6.2f/%6.2f  %-10s %-26s \"%s\"",
 		     per_frame_ms(a->tick_ns + a->render_ns, frames),
 		     per_frame_ms(a->tick_ns, frames),
-		     per_frame_ms(a->render_ns, frames),
-		     to_ms(a->tick_max_ns), to_ms(a->render_max_ns),
-		     type_name(e->type), e->id, e->name);
+		     per_frame_ms(a->render_ns, frames), to_ms(a->tick_max_ns),
+		     to_ms(a->render_max_ns), type_name(e->type), e->id,
+		     e->name);
 	}
 }
 
@@ -317,8 +317,8 @@ static void dump(bool total, uint64_t frames, uint64_t elapsed_ns)
 	     LOG_TAG "==== %s: %.1f s, %llu frames. ms per frame, max in ms "
 		     "(tick/render). Sum of listed: %.3f ms (tick %.3f + "
 		     "render %.3f) ====",
-	     total ? "TOTAL since start" : "last window", to_ms(elapsed_ns) / 1000.0,
-	     (unsigned long long)frames,
+	     total ? "TOTAL since start" : "last window",
+	     to_ms(elapsed_ns) / 1000.0, (unsigned long long)frames,
 	     per_frame_ms(sum_tick + sum_render, frames),
 	     per_frame_ms(sum_tick, frames), per_frame_ms(sum_render, frames));
 

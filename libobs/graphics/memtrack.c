@@ -349,7 +349,7 @@ static void read_fdinfo(uint64_t *vram_kib, uint64_t *gtt_kib)
 		if (ent->d_name[0] == '.')
 			continue;
 
-		char path[64];
+		char path[320];
 		snprintf(path, sizeof(path), "/proc/self/fdinfo/%s",
 			 ent->d_name);
 		FILE *f = fopen(path, "r");
